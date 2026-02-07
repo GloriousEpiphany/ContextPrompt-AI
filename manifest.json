@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "ContextPrompt AI",
+  "version": "1.0.0",
+  "description": "Capture web context → Generate precise AI prompts. 100% local processing. 捕获网页上下文 → 生成精准AI提示词。完全本地处理。",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://chat.qwen.ai/*",
+    "https://www.doubao.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content-scripts/capture.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://chat.qwen.ai/*",
+        "https://www.doubao.com/*"
+      ],
+      "js": [
+        "content-scripts/injector.js"
+      ],
+      "css": [
+        "assets/styles.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  }
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="16" height="16" rx="3" fill="url(#bgGrad)"/>
+  
+  <!-- Simple sparkle for small size -->
+  <path d="M8,3 L9,7 L13,8 L9,9 L8,13 L7,9 L3,8 L7,7 Z" fill="white" opacity="0.95"/>
+</svg>
