@@ -10,17 +10,166 @@
     if (window.__contextPromptCaptureInit) return;
     window.__contextPromptCaptureInit = true;
 
+    // AI Chat Platform Configurations for content extraction
+    const AI_CHAT_EXTRACTORS = {
+        'chat.qwen.ai': {
+            name: '通义千问',
+            messageSelectors: [
+                '[class*="message-content"]',
+                '[class*="chat-message"]',
+                '[class*="markdown-body"]',
+                '.message-item',
+                '[data-message-id]'
+            ],
+            userIndicators: ['user', 'human', '用户'],
+            assistantIndicators: ['assistant', 'bot', 'ai', 'qwen', '助手'],
+            isPrivateLink: (url) => /\/c\/[a-f0-9-]+/.test(url)
+        },
+        'www.doubao.com': {
+            name: '豆包',
+            messageSelectors: [
+                '[class*="message"]',
+                '[class*="chat-content"]',
+                '[class*="conversation-item"]',
+                '.message-wrapper'
+            ],
+            userIndicators: ['user', 'human', '用户'],
+            assistantIndicators: ['assistant', 'bot', 'doubao', '豆包'],
+            isPrivateLink: (url) => /\/chat\//.test(url)
+        },
+        'chat.openai.com': {
+            name: 'ChatGPT',
+            messageSelectors: [
+                '[data-message-author-role]',
+                '.message',
+                '[class*="ConversationItem"]'
+            ],
+            userIndicators: ['user'],
+            assistantIndicators: ['assistant'],
+            isPrivateLink: (url) => /\/c\/[a-f0-9-]+/.test(url)
+        },
+        'chatgpt.com': {
+            name: 'ChatGPT',
+            messageSelectors: [
+                '[data-message-author-role]',
+                '.message',
+                '[class*="ConversationItem"]'
+            ],
+            userIndicators: ['user'],
+            assistantIndicators: ['assistant'],
+            isPrivateLink: (url) => /\/c\/[a-f0-9-]+/.test(url)
+        },
+        'claude.ai': {
+            name: 'Claude',
+            messageSelectors: [
+                '[class*="Message"]',
+                '[class*="prose"]',
+                '.message-content'
+            ],
+            userIndicators: ['human', 'user'],
+            assistantIndicators: ['assistant', 'claude'],
+            isPrivateLink: (url) => /\/chat\/[a-f0-9-]+/.test(url)
+        },
+        'gemini.google.com': {
+            name: 'Gemini',
+            messageSelectors: [
+                '[class*="message"]',
+                '.conversation-turn',
+                '[data-message-id]'
+            ],
+            userIndicators: ['user'],
+            assistantIndicators: ['model', 'gemini'],
+            isPrivateLink: (url) => /\/app\/[a-f0-9]+/.test(url)
+        }
+    };
+
+    /**
+     * Get AI chat platform config for current site
+     */
+    function getAIChatConfig() {
+        const hostname = window.location.hostname;
+        return AI_CHAT_EXTRACTORS[hostname] || null;
+    }
+
+    /**
+     * Check if current page is a private AI chat link
+     */
+    function isPrivateAIChatLink() {
+        const config = getAIChatConfig();
+        if (!config) return false;
+        return config.isPrivateLink(window.location.href);
+    }
+
+    /**
+     * Extract chat messages from AI platform
+     */
+    function extractChatContent() {
+        const config = getAIChatConfig();
+        if (!config) return '';
+
+        const messages = [];
+
+        // Try each selector until we find messages
+        for (const selector of config.messageSelectors) {
+            const elements = document.querySelectorAll(selector);
+            if (elements.length > 0) {
+                elements.forEach((el, index) => {
+                    const text = el.textContent?.trim();
+                    if (text && text.length > 10) {
+                        // Try to determine role from element attributes or parent
+                        let role = 'message';
+                        const elementHTML = el.outerHTML.toLowerCase();
+                        const parentHTML = el.parentElement?.outerHTML?.toLowerCase() || '';
+
+                        if (config.userIndicators.some(ind =>
+                            elementHTML.includes(ind) || parentHTML.includes(ind))) {
+                            role = 'user';
+                        } else if (config.assistantIndicators.some(ind =>
+                            elementHTML.includes(ind) || parentHTML.includes(ind))) {
+                            role = 'assistant';
+                        }
+
+                        messages.push({
+                            role,
+                            content: text.length > 500 ? text.substring(0, 500) + '...' : text
+                        });
+                    }
+                });
+                break; // Use first successful selector
+            }
+        }
+
+        // Format messages for output
+        if (messages.length === 0) return '';
+
+        // Limit to last 10 messages to avoid overwhelming the prompt
+        const recentMessages = messages.slice(-10);
+
+        return recentMessages.map(msg => {
+            const roleLabel = msg.role === 'user' ? '👤 用户' :
+                msg.role === 'assistant' ? '🤖 AI' : '💬';
+            return `${roleLabel}: ${msg.content}`;
+        }).join('\n\n');
+    }
+
     /**
      * Extract all available context from the current page
      */
     function extractPageContext() {
+        const isPrivate = isPrivateAIChatLink();
+        const chatContent = isPrivate ? extractChatContent() : '';
+
         return {
             title: extractTitle(),
             url: window.location.href,
             selection: extractSelection(),
             description: extractDescription(),
             ogData: extractOpenGraphData(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            // New fields for AI chat support
+            isPrivateLink: isPrivate,
+            chatContent: chatContent,
+            platformName: getAIChatConfig()?.name || ''
         };
     }
 

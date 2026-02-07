@@ -128,6 +128,9 @@
         // Create summary from available content
         const summary = createSummary(context);
 
+        // Create chat summary for AI conversations
+        const chatSummary = context.chatContent || '(无对话内容可用 / No chat content available)';
+
         // Replace placeholders
         prompt = prompt.replace(/\{title\}/g, context.title || 'Untitled');
         prompt = prompt.replace(/\{url\}/g, context.url || '');
@@ -135,6 +138,14 @@
         prompt = prompt.replace(/\{selection\}/g, context.selection || '(No text selected / 未选择文本)');
         prompt = prompt.replace(/\{query\}/g, '[Type your question here / 在此输入您的问题]');
         prompt = prompt.replace(/\{description\}/g, context.description || '');
+        prompt = prompt.replace(/\{chatSummary\}/g, chatSummary);
+
+        // If this is a private link but using a non-chat template, add a warning
+        if (context.isPrivateLink && !template.id.includes('chat') && context.chatContent) {
+            const platformName = context.platformName || 'AI 平台';
+            const warning = `\n\n⚠️ 注意：以上内容来自 ${platformName} 的私有对话，原始链接无法被其他 AI 访问。`;
+            prompt += warning;
+        }
 
         return prompt;
     }

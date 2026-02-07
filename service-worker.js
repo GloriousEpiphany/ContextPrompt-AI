@@ -11,35 +11,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function handleMessage(message, sender) {
   const { action, data } = message;
-  
+
   switch (action) {
     case 'saveContext':
       return await saveContext(data);
-    
+
     case 'getLatestContext':
       return await getLatestContext();
-    
+
     case 'getAllContexts':
       return await getAllContexts();
-    
+
     case 'deleteContext':
       return await deleteContext(data.id);
-    
+
     case 'clearAllContexts':
       return await clearAllContexts();
-    
+
     case 'getSettings':
       return await getSettings();
-    
+
     case 'saveSettings':
       return await saveSettings(data);
-    
+
     case 'getTemplates':
       return await getTemplates();
-    
+
     case 'saveTemplate':
       return await saveTemplate(data);
-    
+
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -50,7 +50,7 @@ async function handleMessage(message, sender) {
 async function saveContext(contextData) {
   try {
     const contexts = await getStorageData('contexts', 'session') || [];
-    
+
     const newContext = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
@@ -58,15 +58,19 @@ async function saveContext(contextData) {
       url: contextData.url || '',
       selection: contextData.selection || '',
       description: contextData.description || '',
-      ogData: contextData.ogData || {}
+      ogData: contextData.ogData || {},
+      // New fields for AI chat support
+      chatContent: contextData.chatContent || '',
+      isPrivateLink: contextData.isPrivateLink || false,
+      platformName: contextData.platformName || ''
     };
-    
+
     // Keep max 20 contexts to prevent storage bloat
     contexts.unshift(newContext);
     if (contexts.length > 20) {
       contexts.pop();
     }
-    
+
     await setStorageData('contexts', contexts, 'session');
     return { success: true, context: newContext };
   } catch (error) {
@@ -185,6 +189,18 @@ Q: {query}`
 {summary}
 
 ❓ 我的问题：{query}`
+  },
+  {
+    id: 'ai_chat',
+    name: 'AI Chat Context / AI对话上下文',
+    template: `📌 来自 AI 对话: {title}
+
+💬 对话内容摘要:
+{chatSummary}
+
+⚠️ 注意：原始对话链接为私有链接，无法直接访问。以上是对话的关键内容。
+
+❓ 我的问题: {query}`
   }
 ];
 
@@ -200,7 +216,7 @@ async function getTemplates() {
 async function saveTemplate(template) {
   try {
     const customTemplates = await getStorageData('customTemplates', 'local') || [];
-    
+
     if (template.id) {
       // Update existing
       const index = customTemplates.findIndex(t => t.id === template.id);
@@ -214,7 +230,7 @@ async function saveTemplate(template) {
       template.id = 'custom_' + Date.now();
       customTemplates.push(template);
     }
-    
+
     await setStorageData('customTemplates', customTemplates, 'local');
     return { success: true, template };
   } catch (error) {
