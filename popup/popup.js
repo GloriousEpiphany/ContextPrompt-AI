@@ -10,11 +10,14 @@ let captureBtn, clearAllBtn, settingsBtn, backBtn;
 let contextList, templateSelect;
 let enableInjectionToggle, themeSelect, languageSelect;
 let mainView, settingsView;
+// AI Settings DOM
+let aiEnabledToggle, aiProviderSelect, aiApiKeyInput, aiBaseUrlInput, aiModelSelect, testAiBtn;
 
 // State
 let contexts = [];
 let templates = [];
 let settings = {};
+let selectedContextIds = []; // For multi-select fusion
 
 async function init() {
     // Get DOM references
@@ -29,6 +32,14 @@ async function init() {
     languageSelect = document.getElementById('language-select');
     mainView = document.getElementById('main-view');
     settingsView = document.getElementById('settings-view');
+    // AI Settings DOM
+    aiEnabledToggle = document.getElementById('ai-enabled');
+    aiProviderSelect = document.getElementById('ai-provider');
+    aiApiKeyInput = document.getElementById('ai-api-key');
+    aiBaseUrlInput = document.getElementById('ai-base-url');
+    aiModelSelect = document.getElementById('ai-model');
+    testAiBtn = document.getElementById('test-ai-btn');
+    captureDepthSelect = document.getElementById('capture-depth');
 
     // Bind events
     captureBtn.addEventListener('click', handleCapture);
@@ -39,6 +50,14 @@ async function init() {
     enableInjectionToggle.addEventListener('change', handleSettingChange);
     themeSelect.addEventListener('change', handleSettingChange);
     languageSelect.addEventListener('change', handleSettingChange);
+    // AI Settings events
+    if (aiEnabledToggle) aiEnabledToggle.addEventListener('change', handleAISettingChange);
+    if (aiProviderSelect) aiProviderSelect.addEventListener('change', handleAISettingChange);
+    if (aiApiKeyInput) aiApiKeyInput.addEventListener('change', handleAISettingChange);
+    if (aiBaseUrlInput) aiBaseUrlInput.addEventListener('change', handleAISettingChange);
+    if (aiModelSelect) aiModelSelect.addEventListener('change', handleAISettingChange);
+    if (captureDepthSelect) captureDepthSelect.addEventListener('change', handleAISettingChange);
+    if (testAiBtn) testAiBtn.addEventListener('click', handleTestAI);
 
     // Load data
     await loadData();
@@ -100,12 +119,22 @@ function renderContextList() {
         });
     });
 
-    // Bind context item click to select
+    // Bind context item click to select (with multi-select support)
     contextList.querySelectorAll('.context-item').forEach(item => {
-        item.addEventListener('click', () => {
-            selectContext(item.dataset.id);
+        item.addEventListener('click', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                // Multi-select mode
+                toggleMultiSelect(item.dataset.id);
+            } else {
+                // Single select mode
+                clearMultiSelect();
+                selectContext(item.dataset.id);
+            }
         });
     });
+
+    // Show hint when AI is enabled
+    updateMultiSelectHint();
 }
 
 function renderTemplates() {
@@ -120,6 +149,17 @@ function applySettings() {
     enableInjectionToggle.checked = settings.enableInjection !== false;
     themeSelect.value = settings.theme || 'system';
     languageSelect.value = settings.language || 'auto';
+
+    // AI Settings
+    if (aiEnabledToggle) aiEnabledToggle.checked = settings.aiEnabled || false;
+    if (aiProviderSelect) aiProviderSelect.value = settings.aiProvider || 'openai';
+    if (aiApiKeyInput) aiApiKeyInput.value = settings.aiApiKey || '';
+    if (aiBaseUrlInput) aiBaseUrlInput.value = settings.aiBaseUrl || '';
+    if (aiModelSelect) aiModelSelect.value = settings.aiModel || 'gpt-4o-mini';
+    if (captureDepthSelect) captureDepthSelect.value = settings.captureDepth || 'standard';
+
+    // Toggle AI settings visibility
+    updateAISettingsVisibility();
 }
 
 function applyTheme(theme) {
@@ -145,8 +185,45 @@ async function handleCapture() {
             return;
         }
 
-        // Request context from content script
-        const response = await chrome.tabs.sendMessage(tab.id, { action: 'captureContext' });
+        // Check if it's a valid URL (not chrome://, about:, etc.)
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://')) {
+            showToast('Cannot capture this page / 无法捕获此页面', 'error');
+            return;
+        }
+
+        // Prepare capture options with depth setting
+        const captureOptions = {
+            captureDepth: settings.captureDepth || 'standard'
+        };
+
+        let response;
+        try {
+            // Request context from content script
+            response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'captureContext',
+                options: captureOptions
+            });
+        } catch (sendError) {
+            // Content script not loaded, try to inject it first
+            console.log('Content script not available, injecting...');
+            try {
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['content-scripts/capture.js']
+                });
+                // Wait a moment for script to initialize
+                await new Promise(resolve => setTimeout(resolve, 200));
+                // Try again
+                response = await chrome.tabs.sendMessage(tab.id, {
+                    action: 'captureContext',
+                    options: captureOptions
+                });
+            } catch (injectError) {
+                console.error('Failed to inject content script:', injectError);
+                showToast('Cannot access this page / 无法访问此页面', 'error');
+                return;
+            }
+        }
 
         if (response && response.success) {
             // Save context
@@ -241,6 +318,184 @@ async function saveSettings() {
         console.error('Failed to save settings:', error);
     }
 }
+
+// ==================== AI Settings Functions ====================
+
+function updateAISettingsVisibility() {
+    const aiSettings = document.querySelectorAll('.ai-settings');
+    const customOnly = document.querySelectorAll('.ai-custom-only');
+    const isEnabled = settings.aiEnabled || false;
+    const isCustom = settings.aiProvider === 'custom';
+
+    aiSettings.forEach(el => {
+        el.style.opacity = isEnabled ? '1' : '0.5';
+        el.style.pointerEvents = isEnabled ? 'auto' : 'none';
+    });
+
+    customOnly.forEach(el => {
+        if (isEnabled && isCustom) {
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+
+    // Update datalist based on provider (optional suggestions)
+    updateModelSuggestions();
+}
+
+function updateModelSuggestions() {
+    const datalist = document.getElementById('ai-model-list');
+    if (!datalist) return;
+
+    const provider = settings.aiProvider || 'openai';
+    const models = {
+        openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        deepseek: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
+        qwen: ['qwen-turbo', 'qwen-plus', 'qwen-max', 'qwen-long'],
+        custom: []
+    };
+
+    const providerModels = models[provider] || [];
+    datalist.innerHTML = providerModels.map(m => `<option value="${m}">`).join('');
+}
+
+async function handleAISettingChange() {
+    settings.aiEnabled = aiEnabledToggle?.checked || false;
+    settings.aiProvider = aiProviderSelect?.value || 'openai';
+    settings.aiApiKey = aiApiKeyInput?.value || '';
+    settings.aiBaseUrl = aiBaseUrlInput?.value || '';
+    settings.aiModel = aiModelSelect?.value || 'gpt-4o-mini';
+    settings.captureDepth = captureDepthSelect?.value || 'standard';
+
+    updateAISettingsVisibility();
+    await saveSettings();
+}
+
+async function handleTestAI() {
+    if (!testAiBtn) return;
+
+    testAiBtn.disabled = true;
+    testAiBtn.textContent = '⏳ Testing...';
+
+    try {
+        const result = await chrome.runtime.sendMessage({ action: 'testAIConnection' });
+
+        if (result.success) {
+            showToast('✅ Connection successful! / 连接成功！', 'success');
+        } else {
+            showToast('❌ ' + (result.error || 'Connection failed'), 'error');
+        }
+    } catch (error) {
+        showToast('❌ ' + error.message, 'error');
+    } finally {
+        testAiBtn.disabled = false;
+        testAiBtn.textContent = '🔗 Test Connection / 测试连接';
+    }
+}
+
+// ==================== Multi-Select & Fusion Functions ====================
+
+function toggleMultiSelect(contextId) {
+    const index = selectedContextIds.indexOf(contextId);
+    if (index > -1) {
+        selectedContextIds.splice(index, 1);
+    } else {
+        selectedContextIds.push(contextId);
+    }
+    updateMultiSelectUI();
+}
+
+function clearMultiSelect() {
+    selectedContextIds = [];
+    updateMultiSelectUI();
+}
+
+function updateMultiSelectUI() {
+    // Update visual selection
+    contextList.querySelectorAll('.context-item').forEach(item => {
+        const isMultiSelected = selectedContextIds.includes(item.dataset.id);
+        item.classList.toggle('multi-selected', isMultiSelected);
+    });
+
+    // Show/hide fuse button
+    const fuseBtn = document.getElementById('fuse-btn');
+    if (fuseBtn) {
+        if (selectedContextIds.length >= 2 && settings.aiEnabled) {
+            fuseBtn.classList.remove('hidden');
+        } else {
+            fuseBtn.classList.add('hidden');
+        }
+    }
+}
+
+function updateMultiSelectHint() {
+    const hint = document.getElementById('multi-select-hint');
+    if (hint) {
+        if (settings.aiEnabled && contexts.length >= 2) {
+            hint.classList.remove('hidden');
+        } else {
+            hint.classList.add('hidden');
+        }
+    }
+}
+
+async function handleFuseContexts() {
+    if (selectedContextIds.length < 2) {
+        showToast('⚠️ Select at least 2 contexts / 请选择至少2个上下文', 'warning');
+        return;
+    }
+
+    const fuseBtn = document.getElementById('fuse-btn');
+    if (fuseBtn) {
+        fuseBtn.disabled = true;
+        fuseBtn.textContent = '⏳ Fusing...';
+    }
+
+    try {
+        const selectedContexts = contexts.filter(ctx => selectedContextIds.includes(ctx.id));
+
+        const result = await chrome.runtime.sendMessage({
+            action: 'fuseContexts',
+            data: { contexts: selectedContexts }
+        });
+
+        if (result.success) {
+            // Create a new fused context
+            const fusedContext = {
+                title: `🧠 Fused: ${selectedContexts.map(c => c.title).slice(0, 2).join(' + ')}...`,
+                url: 'fused://multiple-sources',
+                selection: result.fusedContent,
+                description: result.fusedContent,
+                ogData: {}
+            };
+
+            await chrome.runtime.sendMessage({ action: 'saveContext', data: fusedContext });
+            showToast('✅ Contexts fused successfully! / 上下文融合成功！', 'success');
+
+            clearMultiSelect();
+            await loadData();
+        } else {
+            showToast('❌ ' + (result.error || 'Fusion failed'), 'error');
+        }
+    } catch (error) {
+        showToast('❌ ' + error.message, 'error');
+    } finally {
+        if (fuseBtn) {
+            fuseBtn.disabled = false;
+            fuseBtn.textContent = '🧠 Fuse';
+        }
+    }
+}
+
+// Initialize fuse button event
+document.addEventListener('DOMContentLoaded', () => {
+    const fuseBtn = document.getElementById('fuse-btn');
+    if (fuseBtn) {
+        fuseBtn.addEventListener('click', handleFuseContexts);
+    }
+});
+
 
 function showSettings() {
     mainView.classList.add('hidden');

@@ -101,11 +101,21 @@
     }
 
     /**
-     * Extract chat messages from AI platform
+     * Extract chat messages from AI platform with enhanced depth
+     * @param {object} options - Capture options
      */
-    function extractChatContent() {
+    function extractChatContent(options = {}) {
         const config = getAIChatConfig();
         if (!config) return '';
+
+        // Configurable limits based on capture depth
+        const limits = {
+            light: { maxChars: 500, maxMessages: 10 },
+            standard: { maxChars: 1500, maxMessages: 20 },
+            deep: { maxChars: 3000, maxMessages: 30 }
+        };
+        const depth = options.captureDepth || 'standard';
+        const { maxChars, maxMessages } = limits[depth] || limits.standard;
 
         const messages = [];
 
@@ -113,10 +123,12 @@
         for (const selector of config.messageSelectors) {
             const elements = document.querySelectorAll(selector);
             if (elements.length > 0) {
-                elements.forEach((el, index) => {
-                    const text = el.textContent?.trim();
-                    if (text && text.length > 10) {
-                        // Try to determine role from element attributes or parent
+                elements.forEach((el) => {
+                    // Extract structured content (preserve code blocks)
+                    const structuredContent = extractStructuredContent(el);
+
+                    if (structuredContent && structuredContent.length > 10) {
+                        // Determine role from element attributes or parent
                         let role = 'message';
                         const elementHTML = el.outerHTML.toLowerCase();
                         const parentHTML = el.parentElement?.outerHTML?.toLowerCase() || '';
@@ -129,10 +141,13 @@
                             role = 'assistant';
                         }
 
-                        messages.push({
-                            role,
-                            content: text.length > 500 ? text.substring(0, 500) + '...' : text
-                        });
+                        // Truncate if needed but preserve structure
+                        let content = structuredContent;
+                        if (content.length > maxChars) {
+                            content = content.substring(0, maxChars) + '\n...(truncated)';
+                        }
+
+                        messages.push({ role, content });
                     }
                 });
                 break; // Use first successful selector
@@ -142,8 +157,8 @@
         // Format messages for output
         if (messages.length === 0) return '';
 
-        // Limit to last 10 messages to avoid overwhelming the prompt
-        const recentMessages = messages.slice(-10);
+        // Limit to maxMessages
+        const recentMessages = messages.slice(-maxMessages);
 
         return recentMessages.map(msg => {
             const roleLabel = msg.role === 'user' ? '👤 用户' :
@@ -153,11 +168,51 @@
     }
 
     /**
-     * Extract all available context from the current page
+     * Extract content with structure preservation (code blocks, lists, etc.)
      */
-    function extractPageContext() {
+    function extractStructuredContent(element) {
+        const parts = [];
+
+        // Find and extract code blocks first
+        const codeBlocks = element.querySelectorAll('pre, code');
+        const codeContents = new Set();
+        codeBlocks.forEach(code => {
+            const codeText = code.textContent?.trim();
+            if (codeText && codeText.length > 20) {
+                codeContents.add(codeText);
+            }
+        });
+
+        // Get full text content
+        let fullText = element.textContent?.trim() || '';
+
+        // If there are code blocks, format them specially
+        if (codeContents.size > 0) {
+            // Replace code in text with markers, then add formatted code blocks
+            codeContents.forEach((code, index) => {
+                const marker = `[CODE_BLOCK_${index}]`;
+                fullText = fullText.replace(code, marker);
+            });
+
+            // Add code blocks at the end with proper formatting
+            let codeIndex = 0;
+            codeContents.forEach(code => {
+                const truncatedCode = code.length > 800 ? code.substring(0, 800) + '\n...(code truncated)' : code;
+                fullText = fullText.replace(`[CODE_BLOCK_${codeIndex}]`, `\n\`\`\`\n${truncatedCode}\n\`\`\`\n`);
+                codeIndex++;
+            });
+        }
+
+        return fullText;
+    }
+
+    /**
+     * Extract all available context from the current page
+     * @param {object} options - Capture options including captureDepth
+     */
+    function extractPageContext(options = {}) {
         const isPrivate = isPrivateAIChatLink();
-        const chatContent = isPrivate ? extractChatContent() : '';
+        const chatContent = isPrivate ? extractChatContent(options) : '';
 
         return {
             title: extractTitle(),
@@ -237,10 +292,20 @@
     }
 
     /**
-     * Get article main content for summarization
+     * Get article main content for summarization with enhanced extraction
+     * @param {object} options - Capture options
      */
-    function extractMainContent() {
-        // Common article/content selectors
+    function extractMainContent(options = {}) {
+        // Configurable limits based on capture depth
+        const limits = {
+            light: 3000,
+            standard: 8000,
+            deep: 15000
+        };
+        const depth = options.captureDepth || 'standard';
+        const maxChars = limits[depth] || limits.standard;
+
+        // Common article/content selectors (more comprehensive)
         const selectors = [
             'article',
             '[role="main"]',
@@ -249,31 +314,48 @@
             '.article-content',
             '.entry-content',
             '.content',
-            '#content'
+            '#content',
+            '.markdown-body',
+            '.prose',
+            '[class*="article"]',
+            '[class*="post-body"]'
         ];
 
+        let mainElement = null;
         for (const selector of selectors) {
             const element = document.querySelector(selector);
-            if (element) {
-                // Get text content, clean up whitespace
-                let text = element.textContent || '';
-                text = text.replace(/\s+/g, ' ').trim();
-                // Limit to 5000 chars for processing
-                return text.length > 5000 ? text.substring(0, 5000) : text;
+            if (element && element.textContent.length > 200) {
+                mainElement = element;
+                break;
             }
         }
 
-        // Fallback: get body text
-        let bodyText = document.body.textContent || '';
-        bodyText = bodyText.replace(/\s+/g, ' ').trim();
-        return bodyText.length > 5000 ? bodyText.substring(0, 5000) : bodyText;
+        // Fallback to body
+        if (!mainElement) {
+            mainElement = document.body;
+        }
+
+        // Use structured extraction
+        let content = extractStructuredContent(mainElement);
+
+        // Clean up excessive whitespace
+        content = content.replace(/\s+/g, ' ').trim();
+
+        // Truncate if needed
+        if (content.length > maxChars) {
+            content = content.substring(0, maxChars) + '\n...(content truncated)';
+        }
+
+        return content;
     }
 
     // Listen for messages from popup or service worker
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.action === 'captureContext') {
-            const context = extractPageContext();
-            context.mainContent = extractMainContent();
+            const options = message.options || {};
+            const context = extractPageContext(options);
+            context.mainContent = extractMainContent(options);
+            context.captureDepth = options.captureDepth || 'standard';
             sendResponse({ success: true, context });
         }
         return true;

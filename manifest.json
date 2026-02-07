@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ContextPrompt AI",
-  "version": "1.0.0",
-  "description": "Capture web context → Generate precise AI prompts. 100% local processing. 捕获网页上下文 → 生成精准AI提示词。完全本地处理。",
+  "version": "2.0.0",
+  "description": "Capture web context → Generate AI prompts with optional AI-powered summarization. 捕获网页上下文 → 生成智能AI提示词，支持AI增强摘要。",
   "permissions": [
     "storage",
     "activeTab",

@@ -104,8 +104,8 @@
             // Find the selected template
             const template = templates.find(t => t.id === settings.defaultTemplate) || templates[0];
 
-            // Generate the prompt
-            const prompt = generatePrompt(context, template);
+            // Generate the prompt (now async with AI support)
+            const prompt = await generatePrompt(context, template, settings);
 
             // Insert into the input
             await insertPrompt(prompt);
@@ -122,14 +122,29 @@
     }
 
     // Generate prompt from context and template
-    function generatePrompt(context, template) {
+    async function generatePrompt(context, template, settings) {
         let prompt = template.template;
 
-        // Create summary from available content
-        const summary = createSummary(context);
+        // Create summary - use AI if enabled, otherwise fallback to local
+        let summary;
+        if (settings.aiEnabled) {
+            summary = await createSummaryWithAI(context, settings);
+        } else {
+            summary = createSummaryLocal(context);
+        }
+
+        console.log('[ContextPrompt AI] Final summary to use:', summary);
+        console.log('[ContextPrompt AI] Template before replacement:', prompt.substring(0, 200));
 
         // Create chat summary for AI conversations
-        const chatSummary = context.chatContent || '(无对话内容可用 / No chat content available)';
+        // When AI is enabled and we have chat content, use the AI-generated summary for chatSummary too
+        let chatSummary;
+        if (settings.aiEnabled && context.chatContent) {
+            // Use AI summary (already generated above) for chat content
+            chatSummary = summary;
+        } else {
+            chatSummary = context.chatContent || '(无对话内容可用 / No chat content available)';
+        }
 
         // Replace placeholders
         prompt = prompt.replace(/\{title\}/g, context.title || 'Untitled');
@@ -139,6 +154,8 @@
         prompt = prompt.replace(/\{query\}/g, '[Type your question here / 在此输入您的问题]');
         prompt = prompt.replace(/\{description\}/g, context.description || '');
         prompt = prompt.replace(/\{chatSummary\}/g, chatSummary);
+
+        console.log('[ContextPrompt AI] Final prompt:', prompt.substring(0, 500));
 
         // If this is a private link but using a non-chat template, add a warning
         if (context.isPrivateLink && !template.id.includes('chat') && context.chatContent) {
@@ -150,8 +167,60 @@
         return prompt;
     }
 
-    // Create summary from context (simple rule-based NLP)
-    function createSummary(context) {
+    // Create summary using AI (async)
+    async function createSummaryWithAI(context, settings) {
+        console.log('[ContextPrompt AI] createSummaryWithAI called with aiEnabled:', settings.aiEnabled);
+        try {
+            // Determine content to summarize based on context type
+            // For AI chat pages (private links), prioritize chat content
+            // For regular pages, prioritize mainContent
+            let content = '';
+            if (context.isPrivateLink && context.chatContent) {
+                content = context.chatContent;
+                console.log('[ContextPrompt AI] Using chat content (private AI link)');
+            } else {
+                // For regular pages: mainContent > selection > description
+                content = context.mainContent || context.selection || context.description ||
+                    (context.ogData && context.ogData.description) || '';
+                console.log('[ContextPrompt AI] Using main content (regular page)');
+            }
+
+            console.log('[ContextPrompt AI] Content length:', content.length);
+
+            if (!content || content.length < 50) {
+                console.log('[ContextPrompt AI] Content too short, using local');
+                return createSummaryLocal(context);
+            }
+
+            // Call AI summarization via service worker
+            console.log('[ContextPrompt AI] Sending summarizeWithAI message...');
+            const result = await chrome.runtime.sendMessage({
+                action: 'summarizeWithAI',
+                data: {
+                    content: content,
+                    language: settings.language || 'auto',
+                    maxLength: 300
+                }
+            });
+
+            console.log('[ContextPrompt AI] Result:', JSON.stringify(result));
+
+            if (result && result.success && result.summary) {
+                console.log('[ContextPrompt AI] AI summary SUCCESS!');
+                return '🤖 AI Summary:\n' + result.summary;
+            } else {
+                // Fallback to local if AI fails
+                console.log('[ContextPrompt AI] AI failed, using local. Error:', result?.error);
+                return createSummaryLocal(context);
+            }
+        } catch (error) {
+            console.error('[ContextPrompt AI] Exception:', error);
+            return createSummaryLocal(context);
+        }
+    }
+
+    // Create summary locally (fallback)
+    function createSummaryLocal(context) {
         // Priority: selection > description > og data
         if (context.selection && context.selection.length > 50) {
             return truncateText(context.selection, 500);
