@@ -5,39 +5,43 @@
 
 /* ==================== CSS Variables ==================== */
 :root {
-  /* Light theme (default) */
+  /* Light theme (default) - Ocean Teal Palette */
   --bg-primary: #ffffff;
-  --bg-secondary: #f5f7fa;
-  --bg-tertiary: #eef1f5;
-  --text-primary: #1a1a2e;
-  --text-secondary: #4a4a6a;
-  --text-muted: #8a8aa0;
-  --accent-primary: #6366f1;
-  --accent-secondary: #8b5cf6;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --border-color: rgba(0, 0, 0, 0.08);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --bg-secondary: #F0FDFA;
+  --bg-tertiary: #CCFBF1;
+  --text-primary: #134E4A;
+  --text-secondary: #0F766E;
+  --text-muted: #5EEAD4;
+  --accent-primary: #0D9488;
+  --accent-secondary: #0891B2;
+  --accent-gradient: linear-gradient(135deg, #0D9488 0%, #0891B2 50%, #2DD4BF 100%);
+  --border-color: rgba(13, 148, 136, 0.15);
+  --shadow-sm: 0 1px 3px rgba(13, 148, 136, 0.1);
+  --shadow-md: 0 4px 12px rgba(13, 148, 136, 0.15);
+  --shadow-lg: 0 8px 24px rgba(13, 148, 136, 0.2);
+  --success: #059669;
+  --warning: #D97706;
+  --danger: #DC2626;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
 }
 
 [data-theme="dark"] {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #252542;
-  --bg-tertiary: #2f2f4a;
-  --text-primary: #f0f0f5;
-  --text-secondary: #b0b0c5;
-  --text-muted: #6a6a85;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* Dark theme - Ocean Teal Palette */
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --bg-tertiary: #0D3D38;
+  --text-primary: #F0FDFA;
+  --text-secondary: #99F6E4;
+  --text-muted: #5EEAD4;
+  --accent-primary: #14B8A6;
+  --accent-secondary: #22D3EE;
+  --accent-gradient: linear-gradient(135deg, #14B8A6 0%, #22D3EE 50%, #5EEAD4 100%);
+  --border-color: rgba(94, 234, 212, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 /* ==================== Base Styles ==================== */
@@ -212,7 +216,7 @@ body {
 .template-select:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
 }
 
 /* Context Section */
@@ -309,7 +313,7 @@ body {
 }
 
 .context-item.selected {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(13, 148, 136, 0.12);
   border-left: 3px solid var(--accent-primary);
 }
 
@@ -558,7 +562,7 @@ body {
 .mini-input:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
 }
 
 .mini-input::placeholder {
@@ -595,9 +599,9 @@ body {
 
 /* ==================== Multi-Select & Fusion ==================== */
 .context-item.multi-selected {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.18) 0%, rgba(8, 145, 178, 0.12) 100%);
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25);
 }
 
 .section-actions {
@@ -610,14 +614,14 @@ body {
 }
 
 .text-btn.primary:hover {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(13, 148, 136, 0.12);
 }
 
 #multi-select-hint {
   font-size: 11px;
   color: var(--text-muted);
   padding: 6px 10px;
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(13, 148, 136, 0.12);
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
 }

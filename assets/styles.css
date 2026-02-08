@@ -18,7 +18,7 @@
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #0D9488 0%, #0891B2 50%, #2DD4BF 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -27,7 +27,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.4);
     position: relative;
     overflow: hidden;
 }
@@ -41,14 +41,14 @@
     height: 100%;
     background: linear-gradient(90deg,
             transparent,
-            rgba(255, 255, 255, 0.2),
+            rgba(255, 255, 255, 0.25),
             transparent);
     transition: left 0.5s ease;
 }
 
 .contextprompt-inject-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
+    box-shadow: 0 4px 16px rgba(13, 148, 136, 0.5);
 }
 
 .contextprompt-inject-btn:hover::before {
@@ -57,7 +57,7 @@
 
 .contextprompt-inject-btn:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.4);
 }
 
 /* Button Icon */
@@ -134,17 +134,17 @@
 }
 
 .contextprompt-notification-info {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #0D9488 0%, #0891B2 100%);
 }
 
 /* ==================== Dark Mode Adaptations ==================== */
 @media (prefers-color-scheme: dark) {
     .contextprompt-inject-btn {
-        box-shadow: 0 2px 12px rgba(99, 102, 241, 0.5);
+        box-shadow: 0 2px 12px rgba(13, 148, 136, 0.55);
     }
 
     .contextprompt-inject-btn:hover {
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.6);
+        box-shadow: 0 4px 20px rgba(13, 148, 136, 0.65);
     }
 }
 
