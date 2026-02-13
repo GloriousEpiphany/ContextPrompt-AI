@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "ContextPrompt AI",
-  "version": "2.0.0",
-  "description": "Capture web context → Generate AI prompts with optional AI-powered summarization. 捕获网页上下文 → 生成智能AI提示词，支持AI增强摘要。",
+  "name": "__MSG_extName__",
+  "version": "3.0.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "contextMenus",
+    "sidePanel"
   ],
   "host_permissions": [
     "https://chat.openai.com/*",
@@ -22,12 +25,8 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content-scripts/capture.js"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["content-scripts/capture.js"],
       "run_at": "document_end"
     },
     {
@@ -39,12 +38,8 @@
         "https://chat.qwen.ai/*",
         "https://www.doubao.com/*"
       ],
-      "js": [
-        "content-scripts/injector.js"
-      ],
-      "css": [
-        "assets/styles.css"
-      ],
+      "js": ["content-scripts/injector.js"],
+      "css": ["assets/styles.css"],
       "run_at": "document_end"
     }
   ],
@@ -60,5 +55,18 @@
     "16": "assets/icons/icon-16.png",
     "48": "assets/icons/icon-48.png",
     "128": "assets/icons/icon-128.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "commands": {
+    "capture-page": {
+      "suggested_key": { "default": "Ctrl+Shift+C", "mac": "Command+Shift+C" },
+      "description": "Capture current page context"
+    },
+    "generate-prompt": {
+      "suggested_key": { "default": "Ctrl+Shift+P", "mac": "Command+Shift+P" },
+      "description": "Generate and insert prompt"
+    }
   }
 }

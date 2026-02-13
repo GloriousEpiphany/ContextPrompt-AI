@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=400, initial-scale=1.0">
   <title>ContextPrompt AI</title>
+  <link rel="stylesheet" href="../assets/design-tokens.css">
   <link rel="stylesheet" href="popup.css">
 </head>
-
 <body>
   <div class="popup-container">
     <!-- Header -->
@@ -16,201 +15,216 @@
         <span class="logo-icon">✨</span>
         <h1>ContextPrompt AI</h1>
       </div>
-      <button id="settings-btn" class="icon-btn" title="Settings / 设置">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-          </path>
-        </svg>
-      </button>
+      <div class="header-actions">
+        <button id="history-btn" class="icon-btn" data-i18n-title="history" title="History" aria-label="Prompt history">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </button>
+        <button id="settings-btn" class="icon-btn" data-i18n-title="settings" title="Settings" aria-label="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <!-- Main Content View -->
     <main id="main-view" class="popup-main">
-      <!-- Quick Capture Button -->
-      <button id="capture-btn" class="capture-btn">
+      <!-- Quick Capture -->
+      <button id="capture-btn" class="capture-btn" aria-label="Capture current page">
         <span class="capture-icon">📸</span>
-        <span class="capture-text">Capture This Page / 捕获当前页面</span>
+        <span class="capture-text" data-i18n="capture">Capture This Page</span>
       </button>
 
-      <!-- Template Selector -->
-      <div class="template-section">
-        <label for="template-select">Prompt Template / 提示词模板:</label>
-        <select id="template-select" class="template-select">
-          <!-- Populated by JavaScript -->
+      <!-- Template + Search Row -->
+      <div class="toolbar-row">
+        <select id="template-select" class="template-select" aria-label="Prompt template">
         </select>
+        <div class="toolbar-actions">
+          <button id="template-edit-btn" class="icon-btn-sm" title="Edit templates" aria-label="Edit templates">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button id="export-btn" class="icon-btn-sm" title="Export" aria-label="Export contexts">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <label id="import-label" class="icon-btn-sm" title="Import" aria-label="Import contexts">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <input type="file" id="import-input" accept=".json" hidden>
+          </label>
+        </div>
       </div>
 
-      <!-- Context List -->
+      <!-- Search -->
+      <div class="search-box">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" data-i18n-placeholder="search" placeholder="Search contexts..." aria-label="Search contexts">
+      </div>
+
+      <!-- Context Section -->
       <section class="context-section">
         <div class="section-header">
-          <h2>Saved Contexts / 已保存的上下文</h2>
+          <h2 data-i18n="savedContexts">Saved Contexts</h2>
           <div class="section-actions">
-            <button id="fuse-btn" class="text-btn primary hidden" title="Fuse selected contexts / 融合选中的上下文">🧠
-              Fuse</button>
-            <button id="clear-all-btn" class="text-btn danger" title="Clear all / 清除全部">Clear All</button>
+            <button id="fuse-btn" class="text-btn primary hidden" title="Fuse selected" aria-label="Fuse contexts">🧠 <span data-i18n="fuse">Fuse</span></button>
+            <button id="clear-all-btn" class="text-btn danger" data-i18n="clearAll" aria-label="Clear all">Clear All</button>
           </div>
         </div>
-
-        <p id="multi-select-hint" class="hint hidden">💡 Ctrl+Click to select multiple contexts for fusion</p>
-
-        <div id="context-list" class="context-list">
-          <!-- Populated by JavaScript -->
-          <div class="empty-state">
-            <span class="empty-icon">📭</span>
-            <p>No captured contexts yet.<br>没有已捕获的上下文。</p>
-            <p class="hint">Visit any page and click "Capture"<br>访问任意页面并点击"捕获"</p>
+        <p id="multi-select-hint" class="hint hidden" data-i18n="multiSelectHint">Ctrl+Click to select multiple</p>
+        <div id="context-list" class="context-list" role="list">
+          <!-- Skeleton loading -->
+          <div class="skeleton-list">
+            <div class="cp-skeleton-card"><div class="cp-skeleton cp-skeleton-title"></div><div class="cp-skeleton cp-skeleton-text"></div><div class="cp-skeleton cp-skeleton-text"></div></div>
+            <div class="cp-skeleton-card"><div class="cp-skeleton cp-skeleton-title"></div><div class="cp-skeleton cp-skeleton-text"></div><div class="cp-skeleton cp-skeleton-text"></div></div>
           </div>
         </div>
       </section>
     </main>
 
-    <!-- Settings View -->
-    <div id="settings-view" class="popup-settings hidden">
-      <div class="settings-header">
-        <button id="back-btn" class="icon-btn" title="Back / 返回">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
+    <!-- History View -->
+    <div id="history-view" class="popup-view hidden">
+      <div class="view-header">
+        <button id="history-back-btn" class="icon-btn-back" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
-        <h2>Settings / 设置</h2>
+        <h2 data-i18n="promptHistory">Prompt History</h2>
+        <button id="clear-history-btn" class="text-btn danger" aria-label="Clear history">Clear</button>
       </div>
+      <div id="history-list" class="history-list" role="list"></div>
+    </div>
 
+    <!-- Settings View -->
+    <div id="settings-view" class="popup-view hidden">
+      <div class="view-header">
+        <button id="back-btn" class="icon-btn-back" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <h2 data-i18n="settings">Settings</h2>
+      </div>
       <div class="settings-content">
-        <!-- Enable Injection Toggle -->
+        <!-- Basic Settings -->
         <div class="setting-item">
-          <div class="setting-info">
-            <span class="setting-label">Enable Button Injection</span>
-            <span class="setting-desc">启用AI页面按钮注入</span>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="enable-injection" checked>
-            <span class="toggle-slider"></span>
-          </label>
+          <div class="setting-info"><span class="setting-label" data-i18n="enableInjection">Enable Button Injection</span><span class="setting-desc" data-i18n="enableInjectionDesc">Show Craft Prompt button</span></div>
+          <label class="toggle"><input type="checkbox" id="enable-injection" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info"><span class="setting-label" data-i18n="theme">Theme</span></div>
+          <select id="theme-select" class="mini-select"><option value="system" data-i18n="themeSystem">System</option><option value="light" data-i18n="themeLight">Light</option><option value="dark" data-i18n="themeDark">Dark</option></select>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info"><span class="setting-label" data-i18n="language">Language</span></div>
+          <select id="language-select" class="mini-select"><option value="auto" data-i18n="langAuto">Auto</option><option value="en">English</option><option value="zh">中文</option></select>
         </div>
 
-        <!-- Theme -->
-        <div class="setting-item">
-          <div class="setting-info">
-            <span class="setting-label">Theme / 主题</span>
-          </div>
-          <select id="theme-select" class="mini-select">
-            <option value="system">System / 跟随系统</option>
-            <option value="light">Light / 浅色</option>
-            <option value="dark">Dark / 深色</option>
-          </select>
-        </div>
-
-        <!-- Language -->
-        <div class="setting-item">
-          <div class="setting-info">
-            <span class="setting-label">Language / 语言</span>
-          </div>
-          <select id="language-select" class="mini-select">
-            <option value="auto">Auto / 自动</option>
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
-        </div>
-
-        <!-- AI Integration Section -->
+        <!-- Auto Capture -->
         <div class="setting-group">
-          <h3 class="setting-group-title">🤖 AI Integration / AI 集成</h3>
-
+          <h3 class="setting-group-title">📡 <span data-i18n="autoCapture">Auto Capture</span></h3>
           <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Enable AI Summarization</span>
-              <span class="setting-desc">启用AI智能摘要</span>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="ai-enabled">
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="setting-info"><span class="setting-label" data-i18n="autoCapture">Auto Capture</span><span class="setting-desc" data-i18n="autoCaptureDesc">Auto capture matching URLs</span></div>
+            <label class="toggle"><input type="checkbox" id="auto-capture"><span class="toggle-slider"></span></label>
           </div>
-
-          <div class="setting-item ai-settings">
-            <div class="setting-info">
-              <span class="setting-label">Capture Depth / 捕获深度</span>
-              <span class="setting-desc">内容提取的详细程度</span>
-            </div>
-            <select id="capture-depth" class="mini-select">
-              <option value="light">💨 轻量 (省 Token)</option>
-              <option value="standard" selected>⚖️ 标准 (推荐)</option>
-              <option value="deep">🔬 深度 (完整内容)</option>
-            </select>
+          <div class="setting-item auto-capture-settings">
+            <textarea id="auto-capture-patterns" class="mini-textarea" rows="3" data-i18n-placeholder="autoCapturePatterns" placeholder="URL Patterns (one per line)"></textarea>
           </div>
+        </div>
 
-          <div class="setting-item ai-settings">
-            <div class="setting-info">
-              <span class="setting-label">API Provider / 提供商</span>
-            </div>
-            <select id="ai-provider" class="mini-select">
-              <option value="openai">OpenAI</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="qwen">通义千问</option>
-              <option value="custom">Custom / 自定义</option>
-            </select>
+        <!-- AI Integration -->
+        <div class="setting-group">
+          <h3 class="setting-group-title">🤖 <span data-i18n="aiIntegration">AI Integration</span></h3>
+          <div class="setting-item">
+            <div class="setting-info"><span class="setting-label" data-i18n="enableAI">Enable AI Summarization</span><span class="setting-desc" data-i18n="enableAIDesc">Use AI for smart summarization</span></div>
+            <label class="toggle"><input type="checkbox" id="ai-enabled"><span class="toggle-slider"></span></label>
           </div>
-
           <div class="setting-item ai-settings">
-            <div class="setting-info">
-              <span class="setting-label">API Key / 密钥</span>
-            </div>
+            <div class="setting-info"><span class="setting-label" data-i18n="captureDepth">Capture Depth</span></div>
+            <select id="capture-depth" class="mini-select"><option value="light" data-i18n="depthLight">Light</option><option value="standard" selected data-i18n="depthStandard">Standard</option><option value="deep" data-i18n="depthDeep">Deep</option></select>
+          </div>
+          <div class="setting-item ai-settings">
+            <div class="setting-info"><span class="setting-label" data-i18n="apiProvider">API Provider</span></div>
+            <select id="ai-provider" class="mini-select"><option value="openai">OpenAI</option><option value="deepseek">DeepSeek</option><option value="qwen">通义千问</option><option value="custom">Custom</option></select>
+          </div>
+          <div class="setting-item ai-settings">
+            <div class="setting-info"><span class="setting-label" data-i18n="apiKey">API Key</span></div>
             <input type="password" id="ai-api-key" class="mini-input" placeholder="sk-...">
           </div>
-
           <div class="setting-item ai-settings ai-custom-only hidden">
-            <div class="setting-info">
-              <span class="setting-label">Custom Base URL</span>
-            </div>
+            <div class="setting-info"><span class="setting-label" data-i18n="customBaseUrl">Custom Base URL</span></div>
             <input type="text" id="ai-base-url" class="mini-input" placeholder="https://api.example.com/v1">
           </div>
-
           <div class="setting-item ai-settings">
-            <div class="setting-info">
-              <span class="setting-label">Model / 模型</span>
-              <span class="setting-desc">可输入自定义模型名称</span>
-            </div>
+            <div class="setting-info"><span class="setting-label" data-i18n="model">Model</span><span class="setting-desc" data-i18n="modelDesc">Enter custom model name</span></div>
             <input type="text" id="ai-model" class="mini-input" list="ai-model-list" placeholder="gpt-4o-mini">
-            <datalist id="ai-model-list">
-              <option value="gpt-4o-mini">
-              <option value="gpt-4o">
-              <option value="gpt-3.5-turbo">
-              <option value="deepseek-chat">
-              <option value="deepseek-coder">
-              <option value="qwen-turbo">
-              <option value="qwen-plus">
-            </datalist>
+            <datalist id="ai-model-list"></datalist>
           </div>
-
-          <button id="test-ai-btn" class="test-btn ai-settings">
-            🔗 Test Connection / 测试连接
-          </button>
+          <button id="test-ai-btn" class="test-btn ai-settings" data-i18n="testConnection">Test Connection</button>
         </div>
 
-        <!-- Privacy Info -->
+        <!-- Privacy -->
         <div class="privacy-info">
-          <h3>🔒 Privacy / 隐私</h3>
+          <h3>🔒 <span data-i18n="privacy">Privacy</span></h3>
           <ul>
-            <li>Local-first processing / 本地优先处理</li>
-            <li>AI features optional / AI功能可选</li>
-            <li>API keys stored locally / API密钥本地存储</li>
-            <li>Context cleared on browser close / 关闭浏览器时清除上下文</li>
+            <li data-i18n="privacyLocal">Local-first processing</li>
+            <li data-i18n="privacyOptional">AI features optional</li>
+            <li data-i18n="privacyKeys">API keys stored locally</li>
+            <li data-i18n="privacyPersist">Contexts persist across sessions</li>
           </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Context Modal -->
+    <div id="edit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Edit context">
+      <div class="modal-content glass-panel">
+        <div class="modal-header">
+          <h3 data-i18n="editContext">Edit Context</h3>
+          <button id="edit-modal-close" class="icon-btn-sm" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label class="field-label" data-i18n="title">Title</label>
+          <input type="text" id="edit-title" class="field-input">
+          <label class="field-label" data-i18n="notes">Notes</label>
+          <textarea id="edit-notes" class="field-textarea" rows="3"></textarea>
+          <label class="field-label" data-i18n="tags">Tags</label>
+          <input type="text" id="edit-tags" class="field-input" data-i18n-placeholder="tagsPlaceholder" placeholder="Add tags (comma separated)">
+          <div id="tag-suggestions" class="tag-suggestions"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="edit-cancel" class="btn-secondary" data-i18n="cancel">Cancel</button>
+          <button id="edit-save" class="btn-primary" data-i18n="save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Template Editor Modal -->
+    <div id="template-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Template editor">
+      <div class="modal-content glass-panel">
+        <div class="modal-header">
+          <h3 data-i18n="templateEditor">Template Editor</h3>
+          <button id="template-modal-close" class="icon-btn-sm" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label class="field-label" data-i18n="templateName">Template Name</label>
+          <input type="text" id="tmpl-name" class="field-input" placeholder="My Template">
+          <label class="field-label" data-i18n="templateContent">Template Content</label>
+          <textarea id="tmpl-content" class="field-textarea" rows="6" placeholder="{title}\n{summary}\n{query}"></textarea>
+          <p class="field-hint" data-i18n="templatePlaceholders">Available: {title} {url} {summary} {selection} {query} {description} {chatSummary}</p>
+          <div id="custom-templates-list" class="custom-templates-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="tmpl-cancel" class="btn-secondary" data-i18n="cancel">Cancel</button>
+          <button id="tmpl-save" class="btn-primary" data-i18n="save">Save</button>
         </div>
       </div>
     </div>
 
     <!-- Footer -->
     <footer class="popup-footer">
-      <span>v2.0.0</span>
-      <span>•</span>
-      <span>100% Local Processing</span>
+      <span>v3.0.0</span>
+      <span>·</span>
+      <span>Local-First</span>
     </footer>
   </div>
-
-  <script src="popup.js"></script>
+  <script src="popup.js" type="module"></script>
 </body>
-
 </html>

@@ -1,443 +1,329 @@
 /**
- * ContextPrompt AI - Injector Script
- * Injects "✨ Craft Prompt" button into AI chat platforms
+ * ContextPrompt AI - Injector Script v3.0
+ * Injects Craft Prompt button with preview panel, retry logic, history saving
  */
 
 (function () {
-    'use strict';
+  'use strict';
+  if (window.__contextPromptInjectorInit) return;
+  window.__contextPromptInjectorInit = true;
 
-    // Avoid duplicate initialization
-    if (window.__contextPromptInjectorInit) return;
-    window.__contextPromptInjectorInit = true;
+  const PLATFORM_CONFIGS = {
+    'chat.openai.com': { name: 'ChatGPT', inputSelector: '#prompt-textarea', containerSelector: 'form', insertPosition: 'before', inputType: 'textarea' },
+    'chatgpt.com': { name: 'ChatGPT', inputSelector: '#prompt-textarea', containerSelector: 'form', insertPosition: 'before', inputType: 'textarea' },
+    'claude.ai': { name: 'Claude', inputSelector: '[contenteditable="true"]', containerSelector: 'fieldset, form, .composer', insertPosition: 'before', inputType: 'contenteditable' },
+    'gemini.google.com': { name: 'Gemini', inputSelector: 'div[role="textbox"], rich-textarea', containerSelector: '.input-area, form', insertPosition: 'before', inputType: 'contenteditable' },
+    'chat.qwen.ai': { name: '通义千问', inputSelector: 'textarea, [contenteditable="true"]', containerSelector: '.chat-input, form, .input-wrapper', insertPosition: 'before', inputType: 'auto' },
+    'www.doubao.com': { name: '豆包', inputSelector: 'textarea, [contenteditable="true"], .chat-input textarea', containerSelector: '.chat-input-container, form, .input-area', insertPosition: 'before', inputType: 'auto' }
+  };
 
-    // Platform-specific configurations
-    const PLATFORM_CONFIGS = {
-        'chat.openai.com': {
-            name: 'ChatGPT',
-            inputSelector: '#prompt-textarea',
-            containerSelector: 'form',
-            insertPosition: 'before', // before the input
-            inputType: 'textarea'
-        },
-        'chatgpt.com': {
-            name: 'ChatGPT',
-            inputSelector: '#prompt-textarea',
-            containerSelector: 'form',
-            insertPosition: 'before',
-            inputType: 'textarea'
-        },
-        'claude.ai': {
-            name: 'Claude',
-            inputSelector: '[contenteditable="true"]',
-            containerSelector: 'fieldset, form, .composer',
-            insertPosition: 'before',
-            inputType: 'contenteditable'
-        },
-        'gemini.google.com': {
-            name: 'Gemini',
-            inputSelector: 'div[role="textbox"], rich-textarea',
-            containerSelector: '.input-area, form',
-            insertPosition: 'before',
-            inputType: 'contenteditable'
-        },
-        'chat.qwen.ai': {
-            name: '通义千问',
-            inputSelector: 'textarea, [contenteditable="true"]',
-            containerSelector: '.chat-input, form, .input-wrapper',
-            insertPosition: 'before',
-            inputType: 'auto'
-        },
-        'www.doubao.com': {
-            name: '豆包',
-            inputSelector: 'textarea, [contenteditable="true"], .chat-input textarea',
-            containerSelector: '.chat-input-container, form, .input-area',
-            insertPosition: 'before',
-            inputType: 'auto'
-        }
-    };
+  function getPlatformConfig() {
+    return PLATFORM_CONFIGS[window.location.hostname] || null;
+  }
 
-    // Get current platform config
-    function getPlatformConfig() {
-        const hostname = window.location.hostname;
-        return PLATFORM_CONFIGS[hostname] || null;
+  // Retry wrapper for chrome.runtime.sendMessage
+  async function sendMsg(msg, retries = 1) {
+    try {
+      return await chrome.runtime.sendMessage(msg);
+    } catch (err) {
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 500));
+        return sendMsg(msg, retries - 1);
+      }
+      throw err;
     }
+  }
 
-    // Create the inject button
-    function createInjectButton() {
-        const btn = document.createElement('button');
-        btn.id = 'contextprompt-btn';
-        btn.type = 'button';
-        btn.className = 'contextprompt-inject-btn';
-        btn.innerHTML = `
-      <span class="contextprompt-icon">✨</span>
-      <span class="contextprompt-text">Craft Prompt</span>
+  function createInjectButton() {
+    const btn = document.createElement('button');
+    btn.id = 'contextprompt-btn';
+    btn.type = 'button';
+    btn.className = 'contextprompt-inject-btn';
+    btn.innerHTML = `<span class="contextprompt-icon">✨</span><span class="contextprompt-text">Craft Prompt</span>`;
+    btn.title = 'Insert context-aware prompt';
+    btn.addEventListener('click', handleButtonClick);
+    return btn;
+  }
+
+  async function handleButtonClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = document.getElementById('contextprompt-btn');
+    if (btn) btn.classList.add('contextprompt-loading');
+
+    try {
+      const context = await sendMsg({ action: 'getLatestContext' });
+      if (!context) {
+        showNotification(chrome.i18n.getMessage('noContext') || 'No captured context. Visit any page and click the extension icon to save!', 'warning');
+        return;
+      }
+      const settings = await sendMsg({ action: 'getSettings' });
+      const templates = await sendMsg({ action: 'getTemplates' });
+      const template = templates.find(t => t.id === settings.defaultTemplate) || templates[0];
+      const prompt = await generatePrompt(context, template, settings);
+
+      // Show preview panel instead of direct insert
+      showPreviewPanel(prompt, context, templates, settings);
+    } catch (error) {
+      showNotification('Error: ' + error.message, 'error');
+    } finally {
+      if (btn) btn.classList.remove('contextprompt-loading');
+    }
+  }
+
+  // Listen for keyboard shortcut trigger
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.action === 'triggerCraftPrompt') {
+      handleButtonClick(new Event('click'));
+      sendResponse({ success: true });
+    }
+    return false;
+  });
+
+  // ==================== Preview Panel ====================
+
+  function showPreviewPanel(prompt, context, templates, settings) {
+    removePreviewPanel();
+    const panel = document.createElement('div');
+    panel.id = 'contextprompt-preview';
+    panel.className = 'contextprompt-preview-panel';
+    panel.innerHTML = `
+      <div class="contextprompt-preview-header">
+        <span class="contextprompt-preview-title">✨ Prompt Preview</span>
+        <button class="contextprompt-preview-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="contextprompt-preview-toolbar">
+        <select class="contextprompt-template-switcher">
+          ${templates.map(t => `<option value="${t.id}" ${t.id === (settings.defaultTemplate || templates[0].id) ? 'selected' : ''}>${t.name}</option>`).join('')}
+        </select>
+      </div>
+      <textarea class="contextprompt-preview-editor" rows="10">${escapeHtml(prompt)}</textarea>
+      <div class="contextprompt-preview-footer">
+        <button class="contextprompt-btn-cancel">Cancel</button>
+        <button class="contextprompt-btn-insert">Insert Prompt</button>
+      </div>
     `;
-        btn.title = 'Insert context-aware prompt / 插入上下文感知提示词';
+    document.body.appendChild(panel);
+    requestAnimationFrame(() => panel.classList.add('show'));
 
-        btn.addEventListener('click', handleButtonClick);
-        return btn;
+    // Events
+    panel.querySelector('.contextprompt-preview-close').addEventListener('click', removePreviewPanel);
+    panel.querySelector('.contextprompt-btn-cancel').addEventListener('click', removePreviewPanel);
+    panel.querySelector('.contextprompt-btn-insert').addEventListener('click', async () => {
+      const text = panel.querySelector('.contextprompt-preview-editor').value;
+      removePreviewPanel();
+      await insertPrompt(text);
+      // Save to history
+      sendMsg({ action: 'savePromptHistory', data: { prompt: text, template: settings.defaultTemplate, contextTitle: context.title } }).catch(() => {});
+      showNotification(chrome.i18n.getMessage('promptInserted') || 'Prompt inserted!', 'success');
+    });
+    panel.querySelector('.contextprompt-template-switcher').addEventListener('change', async (e) => {
+      const newTemplate = templates.find(t => t.id === e.target.value) || templates[0];
+      const newPrompt = await generatePrompt(context, newTemplate, settings);
+      panel.querySelector('.contextprompt-preview-editor').value = newPrompt;
+    });
+
+    // Close on Escape
+    const escHandler = (e) => { if (e.key === 'Escape') { removePreviewPanel(); document.removeEventListener('keydown', escHandler); } };
+    document.addEventListener('keydown', escHandler);
+  }
+
+  function removePreviewPanel() {
+    const panel = document.getElementById('contextprompt-preview');
+    if (panel) {
+      panel.classList.remove('show');
+      setTimeout(() => panel.remove(), 300);
     }
+  }
 
-    // Handle button click
-    async function handleButtonClick(e) {
-        e.preventDefault();
-        e.stopPropagation();
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
-        const btn = document.getElementById('contextprompt-btn');
-        if (btn) {
-            btn.classList.add('contextprompt-loading');
-        }
+  // ==================== Prompt Generation ====================
 
-        try {
-            // Get the latest context from service worker
-            const context = await chrome.runtime.sendMessage({ action: 'getLatestContext' });
-
-            if (!context) {
-                showNotification('No captured context. Visit any page → click extension icon to save!\n没有已捕获的上下文。请访问任意页面 → 点击插件图标保存！', 'warning');
-                return;
-            }
-
-            // Get settings and templates
-            const settings = await chrome.runtime.sendMessage({ action: 'getSettings' });
-            const templates = await chrome.runtime.sendMessage({ action: 'getTemplates' });
-
-            // Find the selected template
-            const template = templates.find(t => t.id === settings.defaultTemplate) || templates[0];
-
-            // Generate the prompt (now async with AI support)
-            const prompt = await generatePrompt(context, template, settings);
-
-            // Insert into the input
-            await insertPrompt(prompt);
-
-            showNotification('Prompt inserted! / 提示词已插入！', 'success');
-        } catch (error) {
-            console.error('ContextPrompt AI Error:', error);
-            showNotification('Error: ' + error.message, 'error');
-        } finally {
-            if (btn) {
-                btn.classList.remove('contextprompt-loading');
-            }
-        }
-    }
-
-    // Generate prompt from context and template
-    async function generatePrompt(context, template, settings) {
-        let prompt = template.template;
-
-        // Create summary - use AI if enabled, otherwise fallback to local
-        let summary;
-        if (settings.aiEnabled) {
-            summary = await createSummaryWithAI(context, settings);
-        } else {
-            summary = createSummaryLocal(context);
-        }
-
-        console.log('[ContextPrompt AI] Final summary to use:', summary);
-        console.log('[ContextPrompt AI] Template before replacement:', prompt.substring(0, 200));
-
-        // Create chat summary for AI conversations
-        // When AI is enabled and we have chat content, use the AI-generated summary for chatSummary too
-        let chatSummary;
-        if (settings.aiEnabled && context.chatContent) {
-            // Use AI summary (already generated above) for chat content
-            chatSummary = summary;
-        } else {
-            chatSummary = context.chatContent || '(无对话内容可用 / No chat content available)';
-        }
-
-        // Replace placeholders
-        prompt = prompt.replace(/\{title\}/g, context.title || 'Untitled');
-        prompt = prompt.replace(/\{url\}/g, context.url || '');
-        prompt = prompt.replace(/\{summary\}/g, summary);
-        prompt = prompt.replace(/\{selection\}/g, context.selection || '(No text selected / 未选择文本)');
-        prompt = prompt.replace(/\{query\}/g, '[Type your question here / 在此输入您的问题]');
-        prompt = prompt.replace(/\{description\}/g, context.description || '');
-        prompt = prompt.replace(/\{chatSummary\}/g, chatSummary);
-
-        console.log('[ContextPrompt AI] Final prompt:', prompt.substring(0, 500));
-
-        // If this is a private link but using a non-chat template, add a warning
-        if (context.isPrivateLink && !template.id.includes('chat') && context.chatContent) {
-            const platformName = context.platformName || 'AI 平台';
-            const warning = `\n\n⚠️ 注意：以上内容来自 ${platformName} 的私有对话，原始链接无法被其他 AI 访问。`;
-            prompt += warning;
-        }
-
-        return prompt;
-    }
-
-    // Create summary using AI (async)
-    async function createSummaryWithAI(context, settings) {
-        console.log('[ContextPrompt AI] createSummaryWithAI called with aiEnabled:', settings.aiEnabled);
-        try {
-            // Determine content to summarize based on context type
-            // For AI chat pages (private links), prioritize chat content
-            // For regular pages, prioritize mainContent
-            let content = '';
-            if (context.isPrivateLink && context.chatContent) {
-                content = context.chatContent;
-                console.log('[ContextPrompt AI] Using chat content (private AI link)');
-            } else {
-                // For regular pages: mainContent > selection > description
-                content = context.mainContent || context.selection || context.description ||
-                    (context.ogData && context.ogData.description) || '';
-                console.log('[ContextPrompt AI] Using main content (regular page)');
-            }
-
-            console.log('[ContextPrompt AI] Content length:', content.length);
-
-            if (!content || content.length < 50) {
-                console.log('[ContextPrompt AI] Content too short, using local');
-                return createSummaryLocal(context);
-            }
-
-            // Call AI summarization via service worker
-            console.log('[ContextPrompt AI] Sending summarizeWithAI message...');
-            const result = await chrome.runtime.sendMessage({
-                action: 'summarizeWithAI',
-                data: {
-                    content: content,
-                    language: settings.language || 'auto',
-                    maxLength: 300
-                }
-            });
-
-            console.log('[ContextPrompt AI] Result:', JSON.stringify(result));
-
-            if (result && result.success && result.summary) {
-                console.log('[ContextPrompt AI] AI summary SUCCESS!');
-                return '🤖 AI Summary:\n' + result.summary;
-            } else {
-                // Fallback to local if AI fails
-                console.log('[ContextPrompt AI] AI failed, using local. Error:', result?.error);
-                return createSummaryLocal(context);
-            }
-        } catch (error) {
-            console.error('[ContextPrompt AI] Exception:', error);
-            return createSummaryLocal(context);
-        }
-    }
-
-    // Create summary locally (fallback)
-    function createSummaryLocal(context) {
-        // Priority: selection > description > og data
-        if (context.selection && context.selection.length > 50) {
-            return truncateText(context.selection, 500);
-        }
-
-        if (context.description) {
-            return truncateText(context.description, 300);
-        }
-
-        if (context.ogData && context.ogData.description) {
-            return truncateText(context.ogData.description, 300);
-        }
-
-        return 'No detailed content available / 无详细内容可用';
-    }
-
-    // Truncate text to max length
-    function truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength).trim() + '...';
-    }
-
-    // Insert prompt into the input field
-    async function insertPrompt(prompt) {
-        const config = getPlatformConfig();
-        if (!config) return;
-
-        const input = document.querySelector(config.inputSelector);
-        if (!input) {
-            throw new Error('Input field not found');
-        }
-
-        // Focus the input
-        input.focus();
-
-        // Determine input type
-        const isContentEditable = input.hasAttribute('contenteditable') ||
-            input.getAttribute('contenteditable') === 'true';
-
-        if (isContentEditable) {
-            // For contenteditable elements (Claude, Gemini, etc.)
-            // Clear existing content first if empty placeholder
-            if (input.textContent.trim() === '' || input.querySelector('[data-placeholder]')) {
-                input.innerHTML = '';
-            }
-
-            // Insert text
-            const textNode = document.createTextNode(prompt);
-            input.appendChild(textNode);
-
-            // Trigger input event for React/Vue apps
-            input.dispatchEvent(new InputEvent('input', {
-                bubbles: true,
-                cancelable: true,
-                inputType: 'insertText',
-                data: prompt
-            }));
-        } else {
-            // For textarea elements (ChatGPT, Qwen, etc.)
-            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                window.HTMLTextAreaElement.prototype, 'value'
-            ).set;
-
-            nativeInputValueSetter.call(input, prompt);
-
-            // Trigger input event
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        // Move cursor to the query placeholder
-        const queryPlaceholder = '[Type your question here / 在此输入您的问题]';
-        if (prompt.includes(queryPlaceholder)) {
-            // Try to select the placeholder for easy replacement
-            setTimeout(() => {
-                if (isContentEditable) {
-                    const selection = window.getSelection();
-                    const range = document.createRange();
-                    const textContent = input.textContent;
-                    const startIndex = textContent.indexOf(queryPlaceholder);
-                    if (startIndex >= 0) {
-                        // Find the text node containing the placeholder
-                        const walker = document.createTreeWalker(input, NodeFilter.SHOW_TEXT);
-                        let currentNode;
-                        let currentIndex = 0;
-                        while (currentNode = walker.nextNode()) {
-                            const nodeLength = currentNode.textContent.length;
-                            if (currentIndex + nodeLength > startIndex) {
-                                const offset = startIndex - currentIndex;
-                                range.setStart(currentNode, offset);
-                                range.setEnd(currentNode, offset + queryPlaceholder.length);
-                                selection.removeAllRanges();
-                                selection.addRange(range);
-                                break;
-                            }
-                            currentIndex += nodeLength;
-                        }
-                    }
-                } else {
-                    const startIndex = prompt.indexOf(queryPlaceholder);
-                    if (startIndex >= 0) {
-                        input.setSelectionRange(startIndex, startIndex + queryPlaceholder.length);
-                    }
-                }
-            }, 100);
-        }
-    }
-
-    // Show notification toast
-    function showNotification(message, type = 'info') {
-        // Remove existing notification
-        const existing = document.querySelector('.contextprompt-notification');
-        if (existing) {
-            existing.remove();
-        }
-
-        const notification = document.createElement('div');
-        notification.className = `contextprompt-notification contextprompt-notification-${type}`;
-        notification.textContent = message;
-
-        document.body.appendChild(notification);
-
-        // Animate in
-        setTimeout(() => notification.classList.add('show'), 10);
-
-        // Remove after 3 seconds
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
-
-    // Inject the button
-    function injectButton() {
-        const config = getPlatformConfig();
-        if (!config) return;
-
-        // Check if already injected
-        if (document.getElementById('contextprompt-btn')) return;
-
-        // Find the input element
-        const input = document.querySelector(config.inputSelector);
-        if (!input) return;
-
-        // Find container
-        let container = input.closest(config.containerSelector);
-        if (!container) {
-            container = input.parentElement;
-        }
-        if (!container) return;
-
-        // Create and inject button
-        const btn = createInjectButton();
-
-        // Create a wrapper for better positioning
-        const wrapper = document.createElement('div');
-        wrapper.className = 'contextprompt-btn-wrapper';
-        wrapper.appendChild(btn);
-
-        // Insert based on configuration
-        if (config.insertPosition === 'before') {
-            container.insertBefore(wrapper, container.firstChild);
-        } else {
-            container.appendChild(wrapper);
-        }
-
-        console.log(`✨ ContextPrompt AI button injected into ${config.name}`);
-    }
-
-    // Check injection settings before injecting
-    async function checkAndInject() {
-        try {
-            const settings = await chrome.runtime.sendMessage({ action: 'getSettings' });
-            if (settings && settings.enableInjection !== false) {
-                injectButton();
-            }
-        } catch (error) {
-            // If settings check fails, inject anyway
-            injectButton();
-        }
-    }
-
-    // Use MutationObserver to handle SPA navigation and dynamic loading
-    function setupObserver() {
-        const observer = new MutationObserver((mutations) => {
-            // Debounce: only run if button not present
-            if (!document.getElementById('contextprompt-btn')) {
-                checkAndInject();
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        return observer;
-    }
-
-    // Initialize
-    function init() {
-        // Initial injection attempt
-        checkAndInject();
-
-        // Setup observer for dynamic content
-        setupObserver();
-
-        // Also try after a short delay (for slow-loading SPAs)
-        setTimeout(checkAndInject, 1000);
-        setTimeout(checkAndInject, 3000);
-    }
-
-    // Wait for DOM ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+  async function generatePrompt(context, template, settings) {
+    let prompt = template.template;
+    let summary;
+    if (settings.aiEnabled) {
+      summary = await createSummaryWithAI(context, settings);
     } else {
-        init();
+      summary = await createSummaryLocal(context);
     }
 
-    console.log('✨ ContextPrompt AI Injector script loaded');
+    let chatSummary = (settings.aiEnabled && context.chatContent) ? summary
+      : (context.chatContent || '(No chat content available)');
+
+    prompt = prompt.replace(/\{title\}/g, context.title || 'Untitled');
+    prompt = prompt.replace(/\{url\}/g, context.url || '');
+    prompt = prompt.replace(/\{summary\}/g, summary);
+    prompt = prompt.replace(/\{selection\}/g, context.selection || '(No text selected)');
+    prompt = prompt.replace(/\{query\}/g, '[Type your question here]');
+    prompt = prompt.replace(/\{description\}/g, context.description || '');
+    prompt = prompt.replace(/\{chatSummary\}/g, chatSummary);
+
+    if (context.isPrivateLink && !template.id.includes('chat') && context.chatContent) {
+      const platformName = context.platformName || 'AI Platform';
+      prompt += `\n\n⚠️ Note: Content from ${platformName} private conversation.`;
+    }
+    return prompt;
+  }
+
+  async function createSummaryWithAI(context, settings) {
+    try {
+      let content = '';
+      if (context.isPrivateLink && context.chatContent) {
+        content = context.chatContent;
+      } else {
+        content = context.mainContent || context.selection || context.description || (context.ogData && context.ogData.description) || '';
+      }
+      if (!content || content.length < 50) return createSummaryLocal(context);
+
+      const result = await sendMsg({
+        action: 'summarizeWithAI',
+        data: { content, language: settings.language || 'auto', maxLength: 300 }
+      });
+      if (result && result.success && result.summary) {
+        return '🤖 AI Summary:\n' + result.summary;
+      }
+      return createSummaryLocal(context);
+    } catch {
+      return createSummaryLocal(context);
+    }
+  }
+
+  async function createSummaryLocal(context) {
+    // Try NLP engine via service worker
+    try {
+      const result = await sendMsg({ action: 'localSummarize', data: context });
+      if (result && result.success && result.summary) return result.summary;
+    } catch { /* fallback below */ }
+
+    if (context.selection && context.selection.length > 50) return truncateText(context.selection, 500);
+    if (context.description) return truncateText(context.description, 300);
+    if (context.ogData && context.ogData.description) return truncateText(context.ogData.description, 300);
+    return 'No detailed content available';
+  }
+
+  function truncateText(text, max) {
+    return text.length <= max ? text : text.substring(0, max).trim() + '...';
+  }
+
+  // ==================== Insert Prompt ====================
+
+  async function insertPrompt(prompt) {
+    const config = getPlatformConfig();
+    if (!config) return;
+    const input = document.querySelector(config.inputSelector);
+    if (!input) throw new Error('Input field not found');
+
+    input.focus();
+    const isContentEditable = input.hasAttribute('contenteditable') || input.getAttribute('contenteditable') === 'true';
+
+    if (isContentEditable) {
+      if (input.textContent.trim() === '' || input.querySelector('[data-placeholder]')) {
+        input.innerHTML = '';
+      }
+      input.appendChild(document.createTextNode(prompt));
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: prompt }));
+    } else {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(input, prompt);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Select query placeholder
+    const placeholder = '[Type your question here]';
+    if (prompt.includes(placeholder)) {
+      setTimeout(() => {
+        if (isContentEditable) {
+          const sel = window.getSelection();
+          const range = document.createRange();
+          const text = input.textContent;
+          const start = text.indexOf(placeholder);
+          if (start >= 0) {
+            const walker = document.createTreeWalker(input, NodeFilter.SHOW_TEXT);
+            let node, idx = 0;
+            while (node = walker.nextNode()) {
+              if (idx + node.textContent.length > start) {
+                const offset = start - idx;
+                range.setStart(node, offset);
+                range.setEnd(node, offset + placeholder.length);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                break;
+              }
+              idx += node.textContent.length;
+            }
+          }
+        } else {
+          const start = prompt.indexOf(placeholder);
+          if (start >= 0) input.setSelectionRange(start, start + placeholder.length);
+        }
+      }, 100);
+    }
+  }
+
+  // ==================== Notification ====================
+
+  function showNotification(message, type = 'info') {
+    const existing = document.querySelector('.contextprompt-notification');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.className = `contextprompt-notification contextprompt-notification-${type}`;
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => el.classList.add('show'), 10);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
+  }
+
+  // ==================== Injection ====================
+
+  function injectButton() {
+    const config = getPlatformConfig();
+    if (!config) return;
+    if (document.getElementById('contextprompt-btn')) return;
+    const input = document.querySelector(config.inputSelector);
+    if (!input) return;
+    let container = input.closest(config.containerSelector) || input.parentElement;
+    if (!container) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'contextprompt-btn-wrapper';
+    wrapper.appendChild(createInjectButton());
+
+    if (config.insertPosition === 'before') {
+      container.insertBefore(wrapper, container.firstChild);
+    } else {
+      container.appendChild(wrapper);
+    }
+  }
+
+  async function checkAndInject() {
+    try {
+      const settings = await sendMsg({ action: 'getSettings' });
+      if (settings && settings.enableInjection !== false) injectButton();
+    } catch { injectButton(); }
+  }
+
+  function setupObserver() {
+    const observer = new MutationObserver(() => {
+      if (!document.getElementById('contextprompt-btn')) checkAndInject();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function init() {
+    checkAndInject();
+    setupObserver();
+    setTimeout(checkAndInject, 1000);
+    setTimeout(checkAndInject, 3000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

@@ -1,60 +1,201 @@
 /**
- * ContextPrompt AI - Service Worker
- * Message hub for cross-tab communication and context storage
+ * ContextPrompt AI - Service Worker v3.0
+ * Integrates AIService & PromptEngine, uses local storage, adds context menus,
+ * keyboard shortcuts, badge, prompt history, tags, auto-capture, favorites.
  */
 
-// Listen for messages from content scripts and popup
+import { AIService } from './lib/ai-service.js';
+import { PromptEngine } from './lib/nlp-engine.js';
+
+const MAX_CONTEXTS = 50;
+const MAX_HISTORY = 100;
+const promptEngine = new PromptEngine();
+let aiService = new AIService();
+
+// ==================== Initialization ====================
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+  // Migrate session storage to local on update
+  if (details.reason === 'update') {
+    try {
+      const sessionData = await getStorageData('contexts', 'session');
+      if (sessionData && sessionData.length > 0) {
+        const existing = await getStorageData('contexts', 'local') || [];
+        const merged = [...sessionData, ...existing].slice(0, MAX_CONTEXTS);
+        await setStorageData('contexts', merged, 'local');
+        chrome.storage.session.remove('contexts');
+      }
+    } catch (e) { /* ignore migration errors */ }
+  }
+
+  // Show onboarding for new installs
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('onboarding/onboarding.html') });
+  }
+
+  // Setup context menus
+  setupContextMenus();
+
+  // Initialize badge
+  await updateBadge();
+});
+
+// ==================== Context Menus ====================
+
+function setupContextMenus() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'capture-page',
+      title: chrome.i18n.getMessage('capturePageMenu') || 'Capture this page',
+      contexts: ['page']
+    });
+    chrome.contextMenus.create({
+      id: 'capture-selection',
+      title: chrome.i18n.getMessage('captureSelectionMenu') || 'Capture selected text',
+      contexts: ['selection']
+    });
+    chrome.contextMenus.create({
+      id: 'capture-link',
+      title: chrome.i18n.getMessage('captureLinkMenu') || 'Capture link',
+      contexts: ['link']
+    });
+  });
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  try {
+    if (info.menuItemId === 'capture-page') {
+      await captureFromTab(tab);
+    } else if (info.menuItemId === 'capture-selection') {
+      await saveContext({
+        title: tab.title || 'Selection',
+        url: tab.url || '',
+        selection: info.selectionText || '',
+        description: info.selectionText || ''
+      });
+    } else if (info.menuItemId === 'capture-link') {
+      await saveContext({
+        title: info.linkUrl || 'Link',
+        url: info.linkUrl || '',
+        description: `Link from: ${tab.title}`
+      });
+    }
+  } catch (e) { /* ignore */ }
+});
+
+// ==================== Keyboard Shortcuts ====================
+
+chrome.commands.onCommand.addListener(async (command) => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+
+    if (command === 'capture-page') {
+      await captureFromTab(tab);
+    } else if (command === 'generate-prompt') {
+      await chrome.tabs.sendMessage(tab.id, { action: 'triggerCraftPrompt' });
+    }
+  } catch (e) { /* ignore */ }
+});
+
+async function captureFromTab(tab) {
+  if (!tab || !tab.url || tab.url.startsWith('chrome://')) return;
+  try {
+    const settings = await getSettings();
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content-scripts/capture.js']
+    }).catch(() => {});
+    await new Promise(r => setTimeout(r, 200));
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      action: 'captureContext',
+      options: { captureDepth: settings.captureDepth || 'standard' }
+    });
+    if (response && response.success) {
+      await saveContext(response.context);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// ==================== Auto Capture ====================
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' || !tab.url) return;
+  try {
+    const settings = await getSettings();
+    if (!settings.autoCapture || !settings.autoCapturePatterns) return;
+    const patterns = settings.autoCapturePatterns.split('\n').map(p => p.trim()).filter(Boolean);
+    const matches = patterns.some(pattern => {
+      try {
+        return new RegExp(pattern.replace(/\*/g, '.*')).test(tab.url);
+      } catch { return false; }
+    });
+    if (matches) {
+      await captureFromTab(tab);
+    }
+  } catch (e) { /* ignore */ }
+});
+
+// ==================== Message Handler ====================
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  handleMessage(message, sender).then(sendResponse);
-  return true; // Keep message channel open for async response
+  handleMessage(message, sender).then(sendResponse).catch(err => {
+    sendResponse({ success: false, error: err.message });
+  });
+  return true;
 });
 
 async function handleMessage(message, sender) {
   const { action, data } = message;
 
-  switch (action) {
-    case 'saveContext':
-      return await saveContext(data);
+  try {
+    switch (action) {
+      // Context CRUD
+      case 'saveContext': return await saveContext(data);
+      case 'getLatestContext': return await getLatestContext();
+      case 'getAllContexts': return await getAllContexts();
+      case 'deleteContext': return await deleteContext(data.id);
+      case 'clearAllContexts': return await clearAllContexts();
+      case 'updateContext': return await updateContext(data);
 
-    case 'getLatestContext':
-      return await getLatestContext();
+      // Settings
+      case 'getSettings': return await getSettings();
+      case 'saveSettings': return await saveSettings(data);
 
-    case 'getAllContexts':
-      return await getAllContexts();
+      // Templates
+      case 'getTemplates': return await getTemplates();
+      case 'saveTemplate': return await saveTemplate(data);
+      case 'deleteTemplate': return await deleteTemplate(data.id);
 
-    case 'deleteContext':
-      return await deleteContext(data.id);
+      // AI
+      case 'summarizeWithAI': return await summarizeWithAI(data);
+      case 'analyzePromptQuality': return await analyzePromptQuality(data);
+      case 'fuseContexts': return await fuseContextsWithAI(data);
+      case 'testAIConnection': return await testAIConnection();
 
-    case 'clearAllContexts':
-      return await clearAllContexts();
+      // NLP (local)
+      case 'localSummarize': return { success: true, summary: promptEngine.createSummary(data) };
 
-    case 'getSettings':
-      return await getSettings();
+      // Prompt History
+      case 'savePromptHistory': return await savePromptHistory(data);
+      case 'getPromptHistory': return await getPromptHistory();
+      case 'clearPromptHistory': return await clearPromptHistory();
 
-    case 'saveSettings':
-      return await saveSettings(data);
+      // Favorites
+      case 'toggleFavorite': return await toggleFavorite(data.id);
+      case 'getFavorites': return await getFavorites();
 
-    case 'getTemplates':
-      return await getTemplates();
+      // Export/Import
+      case 'exportData': return await exportData();
+      case 'importData': return await importData(data);
 
-    case 'saveTemplate':
-      return await saveTemplate(data);
+      // Tags
+      case 'suggestTags': return await suggestTags(data);
 
-    // AI API Actions
-    case 'summarizeWithAI':
-      return await summarizeWithAI(data);
-
-    case 'analyzePromptQuality':
-      return await analyzePromptQuality(data);
-
-    case 'fuseContexts':
-      return await fuseContextsWithAI(data);
-
-    case 'testAIConnection':
-      return await testAIConnection();
-
-    default:
-      return { success: false, error: 'Unknown action' };
+      default: return { success: false, error: 'Unknown action' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -62,8 +203,7 @@ async function handleMessage(message, sender) {
 
 async function saveContext(contextData) {
   try {
-    const contexts = await getStorageData('contexts', 'session') || [];
-
+    const contexts = await getStorageData('contexts', 'local') || [];
     const newContext = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
@@ -73,51 +213,42 @@ async function saveContext(contextData) {
       description: contextData.description || '',
       ogData: contextData.ogData || {},
       mainContent: contextData.mainContent || '',
-      // New fields for AI chat support
       chatContent: contextData.chatContent || '',
       isPrivateLink: contextData.isPrivateLink || false,
       platformName: contextData.platformName || '',
-      captureDepth: contextData.captureDepth || 'standard'
+      captureDepth: contextData.captureDepth || 'standard',
+      notes: contextData.notes || '',
+      tags: contextData.tags || []
     };
-
-    // Keep max 20 contexts to prevent storage bloat
     contexts.unshift(newContext);
-    if (contexts.length > 20) {
-      contexts.pop();
-    }
-
-    await setStorageData('contexts', contexts, 'session');
+    if (contexts.length > MAX_CONTEXTS) contexts.pop();
+    await setStorageData('contexts', contexts, 'local');
+    await updateBadge();
     return { success: true, context: newContext };
   } catch (error) {
-    console.error('Failed to save context:', error);
     return { success: false, error: error.message };
   }
 }
 
 async function getLatestContext() {
   try {
-    const contexts = await getStorageData('contexts', 'session') || [];
+    const contexts = await getStorageData('contexts', 'local') || [];
     return contexts.length > 0 ? contexts[0] : null;
-  } catch (error) {
-    console.error('Failed to get latest context:', error);
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function getAllContexts() {
   try {
-    return await getStorageData('contexts', 'session') || [];
-  } catch (error) {
-    console.error('Failed to get all contexts:', error);
-    return [];
-  }
+    return await getStorageData('contexts', 'local') || [];
+  } catch { return []; }
 }
 
 async function deleteContext(id) {
   try {
-    let contexts = await getStorageData('contexts', 'session') || [];
+    let contexts = await getStorageData('contexts', 'local') || [];
     contexts = contexts.filter(ctx => ctx.id !== id);
-    await setStorageData('contexts', contexts, 'session');
+    await setStorageData('contexts', contexts, 'local');
+    await updateBadge();
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -126,290 +257,158 @@ async function deleteContext(id) {
 
 async function clearAllContexts() {
   try {
-    await setStorageData('contexts', [], 'session');
+    await setStorageData('contexts', [], 'local');
+    await updateBadge();
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }
 }
 
-// ==================== Settings Management ====================
+async function updateContext(data) {
+  try {
+    const contexts = await getStorageData('contexts', 'local') || [];
+    const idx = contexts.findIndex(c => c.id === data.id);
+    if (idx === -1) return { success: false, error: 'Context not found' };
+    contexts[idx] = { ...contexts[idx], ...data };
+    await setStorageData('contexts', contexts, 'local');
+    return { success: true, context: contexts[idx] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==================== Settings ====================
 
 const DEFAULT_SETTINGS = {
   enableInjection: true,
-  language: 'auto', // 'auto', 'en', 'zh'
-  theme: 'system',  // 'system', 'light', 'dark'
+  language: 'auto',
+  theme: 'system',
   defaultTemplate: 'standard',
-  // AI API Settings
   aiEnabled: false,
   aiProvider: 'openai',
   aiApiKey: '',
   aiBaseUrl: '',
   aiModel: 'gpt-4o-mini',
   autoSummarize: true,
-  // Capture depth: 'light', 'standard', 'deep'
-  captureDepth: 'standard'
+  captureDepth: 'standard',
+  autoCapture: false,
+  autoCapturePatterns: ''
 };
 
 async function getSettings() {
   try {
     const settings = await getStorageData('settings', 'local');
     return { ...DEFAULT_SETTINGS, ...settings };
-  } catch (error) {
-    return DEFAULT_SETTINGS;
-  }
+  } catch { return DEFAULT_SETTINGS; }
 }
 
 async function saveSettings(newSettings) {
   try {
-    const currentSettings = await getSettings();
-    const mergedSettings = { ...currentSettings, ...newSettings };
-    await setStorageData('settings', mergedSettings, 'local');
-    return { success: true, settings: mergedSettings };
+    const current = await getSettings();
+    const merged = { ...current, ...newSettings };
+    await setStorageData('settings', merged, 'local');
+    // Update AI service instance
+    aiService.updateSettings(merged);
+    return { success: true, settings: merged };
   } catch (error) {
     return { success: false, error: error.message };
   }
 }
 
-// ==================== Template Management ====================
+// ==================== Templates ====================
 
 const DEFAULT_TEMPLATES = [
   {
-    id: 'standard',
-    name: 'Standard / 标准',
-    template: `📌 Context from: {title}
-
-{summary}
-
-❓ My question: {query}`
+    id: 'standard', name: 'Standard',
+    template: `📌 Context from: {title}\n\n{summary}\n\n❓ My question: {query}`
   },
   {
-    id: 'detailed',
-    name: 'Detailed / 详细',
-    template: `📌 Source: {title}
-🔗 URL: {url}
-
-📄 Key Information:
-{summary}
-
-💬 Selected Text:
-{selection}
-
-❓ Question: {query}`
+    id: 'detailed', name: 'Detailed',
+    template: `📌 Source: {title}\n🔗 URL: {url}\n\n📄 Key Information:\n{summary}\n\n💬 Selected Text:\n{selection}\n\n❓ Question: {query}`
   },
   {
-    id: 'concise',
-    name: 'Concise / 简洁',
-    template: `Based on "{title}": {summary}
-
-Q: {query}`
+    id: 'concise', name: 'Concise',
+    template: `Based on "{title}": {summary}\n\nQ: {query}`
   },
   {
-    id: 'chinese',
-    name: '中文模板',
-    template: `📌 来源：{title}
-
-📄 关键信息：
-{summary}
-
-❓ 我的问题：{query}`
+    id: 'chinese', name: '中文模板',
+    template: `📌 来源：{title}\n\n📄 关键信息：\n{summary}\n\n❓ 我的问题：{query}`
   },
   {
-    id: 'ai_chat',
-    name: 'AI Chat Context / AI对话上下文',
-    template: `📌 来自 AI 对话: {title}
-
-💬 对话内容摘要:
-{chatSummary}
-
-⚠️ 注意：原始对话链接为私有链接，无法直接访问。以上是对话的关键内容。
-
-❓ 我的问题: {query}`
+    id: 'ai_chat', name: 'AI Chat Context',
+    template: `📌 来自 AI 对话: {title}\n\n💬 对话内容摘要:\n{chatSummary}\n\n⚠️ 注意：原始对话链接为私有链接，无法直接访问。\n\n❓ 我的问题: {query}`
   }
 ];
 
 async function getTemplates() {
   try {
-    const customTemplates = await getStorageData('customTemplates', 'local') || [];
-    return [...DEFAULT_TEMPLATES, ...customTemplates];
-  } catch (error) {
-    return DEFAULT_TEMPLATES;
-  }
+    const custom = await getStorageData('customTemplates', 'local') || [];
+    return [...DEFAULT_TEMPLATES, ...custom];
+  } catch { return DEFAULT_TEMPLATES; }
 }
 
 async function saveTemplate(template) {
   try {
-    const customTemplates = await getStorageData('customTemplates', 'local') || [];
-
+    const custom = await getStorageData('customTemplates', 'local') || [];
     if (template.id) {
-      // Update existing
-      const index = customTemplates.findIndex(t => t.id === template.id);
-      if (index >= 0) {
-        customTemplates[index] = template;
-      } else {
-        customTemplates.push(template);
-      }
+      const idx = custom.findIndex(t => t.id === template.id);
+      if (idx >= 0) custom[idx] = template;
+      else custom.push(template);
     } else {
-      // Create new
       template.id = 'custom_' + Date.now();
-      customTemplates.push(template);
+      custom.push(template);
     }
-
-    await setStorageData('customTemplates', customTemplates, 'local');
+    await setStorageData('customTemplates', custom, 'local');
     return { success: true, template };
   } catch (error) {
     return { success: false, error: error.message };
   }
 }
 
-// ==================== AI API Functions ====================
-
-// Import AI service dynamically (for service worker compatibility)
-let aiServiceInstance = null;
-
-async function getAIService() {
-  if (!aiServiceInstance) {
-    // Create a simple AI service implementation for service worker
-    const settings = await getSettings();
-    aiServiceInstance = createAIService(settings);
+async function deleteTemplate(id) {
+  try {
+    let custom = await getStorageData('customTemplates', 'local') || [];
+    custom = custom.filter(t => t.id !== id);
+    await setStorageData('customTemplates', custom, 'local');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
-  return aiServiceInstance;
 }
 
-function createAIService(settings) {
-  return {
-    enabled: settings.aiEnabled || false,
-    provider: settings.aiProvider || 'openai',
-    apiKey: settings.aiApiKey || '',
-    baseUrl: settings.aiBaseUrl || '',
-    model: settings.aiModel || 'gpt-4o-mini',
+// ==================== AI Functions ====================
 
-    isConfigured() {
-      return this.enabled && this.apiKey && this.apiKey.length > 0;
-    },
-
-    getBaseUrl() {
-      const providers = {
-        openai: 'https://api.openai.com/v1',
-        deepseek: 'https://api.deepseek.com/v1',
-        anthropic: 'https://api.anthropic.com/v1',
-        qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-      };
-      if (this.provider === 'custom' && this.baseUrl) {
-        return this.baseUrl;
-      }
-      return providers[this.provider] || providers.openai;
-    },
-
-    async callAPI(messages, options = {}) {
-      if (!this.isConfigured()) {
-        throw new Error('AI service not configured');
-      }
-
-      const endpoint = `${this.getBaseUrl()}/chat/completions`;
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify({
-          model: this.model,
-          messages: messages,
-          temperature: options.temperature || 0.7,
-          max_tokens: options.maxTokens || 1000
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content || '';
-    }
-  };
+async function refreshAIService() {
+  const settings = await getSettings();
+  aiService.updateSettings(settings);
+  return aiService;
 }
 
 async function summarizeWithAI(data) {
-  console.log('[SW] summarizeWithAI called');
   try {
-    const settings = await getSettings();
-    console.log('[SW] Settings:', { aiEnabled: settings.aiEnabled, aiProvider: settings.aiProvider, hasApiKey: !!settings.aiApiKey });
-
-    const service = createAIService(settings);
-
+    const service = await refreshAIService();
     if (!service.isConfigured()) {
-      console.log('[SW] AI service not configured');
       return { success: false, error: 'AI not configured', fallback: true };
     }
-
     const content = data.content || '';
-    const language = data.language || settings.language || 'auto';
+    const language = data.language || 'auto';
     const maxLength = data.maxLength || 300;
-
-    console.log('[SW] Calling AI API with content length:', content.length);
-
-    const systemPrompt = language === 'zh'
-      ? `你是一个专业的内容摘要助手。请用简洁的中文总结以下内容，突出关键信息，控制在${maxLength}字以内。`
-      : `You are a professional content summarizer. Summarize the following content concisely, highlighting key information, within ${maxLength} words.`;
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Please summarize:\n\n${content}` }
-    ];
-
-    const summary = await service.callAPI(messages, { temperature: 0.5, maxTokens: 500 });
-    console.log('[SW] AI API success, summary length:', summary.length);
+    const summary = await service.summarize(content, { language, maxLength });
     return { success: true, summary };
   } catch (error) {
-    console.error('[SW] AI summarize error:', error);
     return { success: false, error: error.message, fallback: true };
   }
 }
 
 async function analyzePromptQuality(data) {
   try {
-    const settings = await getSettings();
-    const service = createAIService(settings);
-
+    const service = await refreshAIService();
     if (!service.isConfigured()) {
       return { success: false, error: 'AI not configured' };
     }
-
-    const prompt = data.prompt || '';
-
-    const systemPrompt = `你是一个提示词质量分析专家。分析以下提示词并返回JSON格式结果：
-{
-  "clarity": 1-10,
-  "specificity": 1-10,
-  "completeness": 1-10,
-  "overall": 1-10,
-  "suggestions": ["建议1", "建议2"],
-  "improvedPrompt": "优化后的提示词"
-}
-只返回JSON。`;
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt }
-    ];
-
-    const response = await service.callAPI(messages, { temperature: 0.3, maxTokens: 800 });
-
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return { success: true, analysis: JSON.parse(jsonMatch[0]) };
-      }
-    } catch (e) {
-      console.error('Failed to parse analysis:', e);
-    }
-
-    return { success: true, analysis: { overall: 5, suggestions: ['分析失败'] } };
+    const analysis = await service.analyzePromptQuality(data.prompt || '');
+    return { success: true, analysis };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -417,31 +416,11 @@ async function analyzePromptQuality(data) {
 
 async function fuseContextsWithAI(data) {
   try {
-    const settings = await getSettings();
-    const service = createAIService(settings);
-
+    const service = await refreshAIService();
     if (!service.isConfigured()) {
       return { success: false, error: 'AI not configured' };
     }
-
-    const contexts = data.contexts || [];
-    if (contexts.length === 0) {
-      return { success: false, error: 'No contexts to fuse' };
-    }
-
-    const contextTexts = contexts.map((ctx, i) => {
-      const content = ctx.selection || ctx.description || ctx.chatContent || '';
-      return `【Context ${i + 1}: ${ctx.title}】\n${content}`;
-    }).join('\n\n---\n\n');
-
-    const systemPrompt = `你是一个智能上下文融合助手。请分析以下多个来源的上下文，找出关联，生成连贯的融合摘要。控制在500字以内。`;
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: contextTexts }
-    ];
-
-    const fusedContent = await service.callAPI(messages, { temperature: 0.5 });
+    const fusedContent = await service.fuseContexts(data.contexts || []);
     return { success: true, fusedContent };
   } catch (error) {
     return { success: false, error: error.message };
@@ -450,19 +429,146 @@ async function fuseContextsWithAI(data) {
 
 async function testAIConnection() {
   try {
-    const settings = await getSettings();
-    const service = createAIService(settings);
-
+    const service = await refreshAIService();
     if (!service.isConfigured()) {
       return { success: false, error: 'AI not configured' };
     }
-
-    const messages = [{ role: 'user', content: 'Hi, respond with OK.' }];
-    const response = await service.callAPI(messages, { maxTokens: 10 });
-    return { success: true, message: response };
+    return await service.testConnection();
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+// ==================== Prompt History ====================
+
+async function savePromptHistory(data) {
+  try {
+    const history = await getStorageData('promptHistory', 'local') || [];
+    history.unshift({
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      prompt: data.prompt || '',
+      template: data.template || '',
+      contextTitle: data.contextTitle || '',
+      favorite: false
+    });
+    if (history.length > MAX_HISTORY) history.pop();
+    await setStorageData('promptHistory', history, 'local');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function getPromptHistory() {
+  try {
+    return await getStorageData('promptHistory', 'local') || [];
+  } catch { return []; }
+}
+
+async function clearPromptHistory() {
+  try {
+    await setStorageData('promptHistory', [], 'local');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==================== Favorites ====================
+
+async function toggleFavorite(id) {
+  try {
+    const history = await getStorageData('promptHistory', 'local') || [];
+    const idx = history.findIndex(h => h.id === id);
+    if (idx === -1) return { success: false, error: 'Not found' };
+    history[idx].favorite = !history[idx].favorite;
+    await setStorageData('promptHistory', history, 'local');
+    return { success: true, favorite: history[idx].favorite };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function getFavorites() {
+  try {
+    const history = await getStorageData('promptHistory', 'local') || [];
+    return history.filter(h => h.favorite);
+  } catch { return []; }
+}
+
+// ==================== Export / Import ====================
+
+async function exportData() {
+  try {
+    const contexts = await getStorageData('contexts', 'local') || [];
+    const settings = await getSettings();
+    const templates = await getStorageData('customTemplates', 'local') || [];
+    const history = await getStorageData('promptHistory', 'local') || [];
+    return {
+      success: true,
+      data: {
+        version: '3.0.0',
+        exportedAt: new Date().toISOString(),
+        contexts, settings, customTemplates: templates, promptHistory: history
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function importData(data) {
+  try {
+    if (!data || !data.version) return { success: false, error: 'Invalid data' };
+    let imported = 0;
+    if (data.contexts && Array.isArray(data.contexts)) {
+      const existing = await getStorageData('contexts', 'local') || [];
+      const existingIds = new Set(existing.map(c => c.id));
+      const newContexts = data.contexts.filter(c => !existingIds.has(c.id));
+      const merged = [...newContexts, ...existing].slice(0, MAX_CONTEXTS);
+      await setStorageData('contexts', merged, 'local');
+      imported = newContexts.length;
+    }
+    if (data.customTemplates && Array.isArray(data.customTemplates)) {
+      const existing = await getStorageData('customTemplates', 'local') || [];
+      const existingIds = new Set(existing.map(t => t.id));
+      const newTemplates = data.customTemplates.filter(t => !existingIds.has(t.id));
+      await setStorageData('customTemplates', [...existing, ...newTemplates], 'local');
+    }
+    if (data.promptHistory && Array.isArray(data.promptHistory)) {
+      const existing = await getStorageData('promptHistory', 'local') || [];
+      const existingIds = new Set(existing.map(h => h.id));
+      const newHistory = data.promptHistory.filter(h => !existingIds.has(h.id));
+      const merged = [...newHistory, ...existing].slice(0, MAX_HISTORY);
+      await setStorageData('promptHistory', merged, 'local');
+    }
+    await updateBadge();
+    return { success: true, imported };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==================== Tags ====================
+
+async function suggestTags(data) {
+  try {
+    const content = data.content || data.title || '';
+    const keywords = promptEngine.extractKeywords(content, 5);
+    return { success: true, tags: keywords };
+  } catch { return { success: true, tags: [] }; }
+}
+
+// ==================== Badge ====================
+
+async function updateBadge() {
+  try {
+    const contexts = await getStorageData('contexts', 'local') || [];
+    const count = contexts.length;
+    chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
+    chrome.action.setBadgeBackgroundColor({ color: '#0D9488' });
+  } catch { /* ignore */ }
 }
 
 // ==================== Storage Helpers ====================
@@ -471,11 +577,8 @@ function getStorageData(key, storageType = 'local') {
   return new Promise((resolve, reject) => {
     const storage = storageType === 'session' ? chrome.storage.session : chrome.storage.local;
     storage.get([key], (result) => {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve(result[key]);
-      }
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve(result[key]);
     });
   });
 }
@@ -484,14 +587,8 @@ function setStorageData(key, value, storageType = 'local') {
   return new Promise((resolve, reject) => {
     const storage = storageType === 'session' ? chrome.storage.session : chrome.storage.local;
     storage.set({ [key]: value }, () => {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve();
-      }
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve();
     });
   });
 }
-
-// Log startup
-console.log('✨ ContextPrompt AI Service Worker started');
