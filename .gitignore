@@ -9,6 +9,7 @@ build/
 # IDE and Editor files
 .idea/
 .vscode/
+.vs/
 *.swp
 *.swo
 *~
@@ -49,3 +50,6 @@ ehthumbs.db
 
 # Development tools
 assets/icons/generate-icons.html
+
+# AI assistant config
+.claude/

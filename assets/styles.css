@@ -1,6 +1,6 @@
 /**
- * ContextPrompt AI - Injected Button Styles
- * Styles for the "✨ Craft Prompt" button injected into AI chat pages
+ * ContextPrompt AI - Injected UI Styles v4.0
+ * Premium button and preview panel for AI chat platforms
  */
 
 /* ==================== Button Wrapper ==================== */
@@ -17,17 +17,18 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
-    background: linear-gradient(135deg, #0D9488 0%, #0891B2 50%, #2DD4BF 100%);
+    padding: 7px 14px;
+    background: linear-gradient(135deg, #0f766e 0%, #0e7490 40%, #0d9488 100%);
     color: white;
     border: none;
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 13px;
     font-weight: 600;
+    letter-spacing: -0.01em;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(13, 148, 136, 0.25);
     position: relative;
     overflow: hidden;
 }
@@ -39,16 +40,13 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg,
-            transparent,
-            rgba(255, 255, 255, 0.25),
-            transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
     transition: left 0.5s ease;
 }
 
 .contextprompt-inject-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(13, 148, 136, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(13, 148, 136, 0.35);
 }
 
 .contextprompt-inject-btn:hover::before {
@@ -56,18 +54,19 @@
 }
 
 .contextprompt-inject-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.4);
+    transform: translateY(0) scale(0.98);
 }
 
 /* Button Icon */
 .contextprompt-icon {
     font-size: 14px;
-    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
 }
 
 .contextprompt-inject-btn:hover .contextprompt-icon {
-    transform: scale(1.15) rotate(15deg);
+    transform: scale(1.1) rotate(10deg);
 }
 
 /* Button Text */
@@ -78,7 +77,7 @@
 /* Loading State */
 .contextprompt-loading {
     pointer-events: none;
-    opacity: 0.8;
+    opacity: 0.7;
 }
 
 .contextprompt-loading .contextprompt-icon {
@@ -86,13 +85,8 @@
 }
 
 @keyframes contextprompt-spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* ==================== Notification Toast ==================== */
@@ -101,19 +95,21 @@
     top: 20px;
     right: 20px;
     padding: 12px 20px;
-    border-radius: 10px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
+    border-radius: 12px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
     font-weight: 500;
     color: white;
-    background: #1a1a2e;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 10px 20px -3px rgba(0, 0, 0, 0.15);
     z-index: 999999;
     opacity: 0;
     transform: translateX(100%);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     max-width: 340px;
     line-height: 1.5;
+    letter-spacing: -0.01em;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .contextprompt-notification.show {
@@ -122,82 +118,72 @@
 }
 
 .contextprompt-notification-success {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
 }
 
 .contextprompt-notification-error {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
 }
 
 .contextprompt-notification-warning {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
 }
 
 .contextprompt-notification-info {
-    background: linear-gradient(135deg, #0D9488 0%, #0891B2 100%);
+    background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
 }
 
-/* ==================== Dark Mode Adaptations ==================== */
+/* ==================== Dark Mode ==================== */
 @media (prefers-color-scheme: dark) {
     .contextprompt-inject-btn {
-        box-shadow: 0 2px 12px rgba(13, 148, 136, 0.55);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 2px 12px rgba(13, 148, 136, 0.35);
     }
-
     .contextprompt-inject-btn:hover {
-        box-shadow: 0 4px 20px rgba(13, 148, 136, 0.65);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 4px 20px rgba(13, 148, 136, 0.45);
     }
 }
 
-/* ==================== Platform-Specific Adjustments ==================== */
-
-/* ChatGPT */
+/* ==================== Platform-Specific ==================== */
 [data-testid="composer"] .contextprompt-btn-wrapper,
 form:has(#prompt-textarea) .contextprompt-btn-wrapper {
     margin-bottom: 8px;
 }
 
-/* Claude */
 fieldset .contextprompt-btn-wrapper {
     margin: 8px 12px;
 }
 
-/* Gemini */
 .input-area .contextprompt-btn-wrapper {
     margin: 8px 0;
 }
 
-/* Qwen - 通义千问 */
 .chat-input .contextprompt-btn-wrapper {
     margin: 8px 12px;
 }
 
-/* Doubao - 豆包 */
 .chat-input-container .contextprompt-btn-wrapper {
     margin: 8px 12px;
 }
 
-/* ==================== Responsive Button ==================== */
+/* ==================== Responsive ==================== */
 @media (max-width: 768px) {
     .contextprompt-inject-btn {
         padding: 6px 10px;
         font-size: 12px;
     }
-
     .contextprompt-text {
         display: none;
     }
-
     .contextprompt-icon {
         font-size: 16px;
     }
 }
 
-/* ==================== High Contrast Mode ==================== */
+/* ==================== High Contrast ==================== */
 @media (prefers-contrast: high) {
     .contextprompt-inject-btn {
         border: 2px solid white;
     }
-
     .contextprompt-notification {
         border: 2px solid white;
     }
@@ -205,7 +191,6 @@ fieldset .contextprompt-btn-wrapper {
 
 /* ==================== Reduced Motion ==================== */
 @media (prefers-reduced-motion: reduce) {
-
     .contextprompt-inject-btn,
     .contextprompt-inject-btn::before,
     .contextprompt-icon,
@@ -223,20 +208,24 @@ fieldset .contextprompt-btn-wrapper {
     right: 20px;
     width: 380px;
     max-height: 480px;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(13, 148, 136, 0.2);
-    border-radius: 14px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 16px;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.04),
+        0 4px 8px rgba(0, 0, 0, 0.04),
+        0 16px 32px rgba(0, 0, 0, 0.08),
+        0 0 0 1px rgba(0, 0, 0, 0.02);
     z-index: 999998;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     opacity: 0;
-    transform: translateY(16px) scale(0.96);
-    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transform: translateY(12px) scale(0.97);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .contextprompt-preview-panel.show {
@@ -246,9 +235,13 @@ fieldset .contextprompt-btn-wrapper {
 
 @media (prefers-color-scheme: dark) {
     .contextprompt-preview-panel {
-        background: rgba(15, 23, 42, 0.92);
-        border-color: rgba(94, 234, 212, 0.15);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        background: rgba(15, 23, 42, 0.9);
+        border-color: rgba(94, 234, 212, 0.08);
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.15),
+            0 4px 8px rgba(0, 0, 0, 0.15),
+            0 16px 32px rgba(0, 0, 0, 0.25),
+            0 0 40px rgba(13, 148, 136, 0.06);
     }
 }
 
@@ -257,72 +250,109 @@ fieldset .contextprompt-btn-wrapper {
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    border-bottom: 1px solid rgba(13, 148, 136, 0.12);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+    .contextprompt-preview-header {
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
 }
 
 .contextprompt-preview-title {
     font-size: 14px;
     font-weight: 600;
-    color: #134e4a;
+    color: #0f172a;
+    letter-spacing: -0.02em;
 }
 
 @media (prefers-color-scheme: dark) {
-    .contextprompt-preview-title { color: #f0fdfa; }
+    .contextprompt-preview-title { color: #f1f5f9; }
 }
 
 .contextprompt-preview-close {
     background: none;
     border: none;
-    font-size: 20px;
     cursor: pointer;
     color: #94a3b8;
-    padding: 2px 6px;
+    padding: 4px;
     border-radius: 6px;
     transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
 }
 
 .contextprompt-preview-close:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
 }
 
 .contextprompt-preview-toolbar {
     padding: 8px 16px;
-    border-bottom: 1px solid rgba(13, 148, 136, 0.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+    .contextprompt-preview-toolbar {
+        border-bottom-color: rgba(255, 255, 255, 0.04);
+    }
 }
 
 .contextprompt-template-switcher {
     width: 100%;
     padding: 6px 10px;
-    background: rgba(13, 148, 136, 0.06);
-    border: 1px solid rgba(13, 148, 136, 0.15);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
     font-size: 12px;
+    font-family: inherit;
     color: inherit;
     cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.contextprompt-template-switcher:focus {
+    outline: none;
+    border-color: #0d9488;
+}
+
+@media (prefers-color-scheme: dark) {
+    .contextprompt-template-switcher {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
 }
 
 .contextprompt-preview-editor {
     flex: 1;
     margin: 12px 16px;
     padding: 10px;
-    background: rgba(13, 148, 136, 0.04);
-    border: 1px solid rgba(13, 148, 136, 0.12);
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: 8px;
     font-size: 13px;
-    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
     line-height: 1.5;
     color: inherit;
     resize: vertical;
     min-height: 120px;
     max-height: 280px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .contextprompt-preview-editor:focus {
     outline: none;
     border-color: #0d9488;
-    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    .contextprompt-preview-editor {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.06);
+    }
 }
 
 .contextprompt-preview-footer {
@@ -330,40 +360,59 @@ fieldset .contextprompt-btn-wrapper {
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 16px;
-    border-top: 1px solid rgba(13, 148, 136, 0.08);
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+    .contextprompt-preview-footer {
+        border-top-color: rgba(255, 255, 255, 0.04);
+    }
 }
 
 .contextprompt-btn-cancel {
-    padding: 8px 16px;
-    background: rgba(13, 148, 136, 0.08);
-    border: 1px solid rgba(13, 148, 136, 0.15);
+    padding: 7px 16px;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 8px;
     font-size: 13px;
+    font-family: inherit;
     cursor: pointer;
     color: inherit;
     transition: all 0.15s ease;
 }
 
 .contextprompt-btn-cancel:hover {
-    background: rgba(13, 148, 136, 0.15);
+    background: rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    .contextprompt-btn-cancel {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+    .contextprompt-btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
 }
 
 .contextprompt-btn-insert {
-    padding: 8px 20px;
-    background: linear-gradient(135deg, #0D9488 0%, #0891B2 100%);
+    padding: 7px 20px;
+    background: linear-gradient(135deg, #0f766e 0%, #0e7490 100%);
     color: white;
     border: none;
     border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
+    font-family: inherit;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+    box-shadow: 0 1px 3px rgba(13, 148, 136, 0.2);
+    letter-spacing: -0.01em;
 }
 
 .contextprompt-btn-insert:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
 }
 
 .contextprompt-btn-insert:active {

@@ -12,27 +12,31 @@
     <!-- Header -->
     <header class="sp-header">
       <div class="sp-logo">
-        <span>✨</span>
-        <h1>ContextPrompt AI</h1>
+        <div class="sp-logo-mark">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/>
+          </svg>
+        </div>
+        <h1>ContextPrompt <span class="sp-ai">AI</span></h1>
       </div>
     </header>
 
     <!-- Tab Navigation -->
     <nav class="sp-tabs" role="tablist">
       <button class="sp-tab active" data-tab="contexts" role="tab" aria-selected="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         Contexts
       </button>
       <button class="sp-tab" data-tab="library" role="tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         Library
       </button>
       <button class="sp-tab" data-tab="history" role="tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         History
       </button>
       <button class="sp-tab" data-tab="quality" role="tab">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         Quality
       </button>
     </nav>
@@ -42,6 +46,7 @@
       <!-- Contexts Panel -->
       <div id="panel-contexts" class="sp-panel active" role="tabpanel">
         <div class="sp-search">
+          <svg class="sp-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="sp-search" placeholder="Search contexts..." aria-label="Search">
         </div>
         <div id="sp-context-list" class="sp-list"></div>
@@ -55,7 +60,7 @@
       <!-- History Panel -->
       <div id="panel-history" class="sp-panel" role="tabpanel">
         <div class="sp-panel-header">
-          <span>Prompt History</span>
+          <span class="sp-panel-title">Prompt History</span>
           <button id="sp-clear-history" class="sp-text-btn">Clear</button>
         </div>
         <div id="sp-history-list" class="sp-list"></div>
@@ -65,7 +70,10 @@
       <div id="panel-quality" class="sp-panel" role="tabpanel">
         <div class="sp-quality-input">
           <textarea id="sp-quality-prompt" rows="4" placeholder="Paste a prompt to analyze its quality..."></textarea>
-          <button id="sp-analyze-btn" class="sp-btn-primary">Analyze Quality</button>
+          <button id="sp-analyze-btn" class="sp-btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Analyze Quality
+          </button>
         </div>
         <div id="sp-radar-container" class="sp-radar-container">
           <canvas id="sp-radar-canvas" width="280" height="280"></canvas>
