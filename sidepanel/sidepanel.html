@@ -50,6 +50,23 @@
           <input type="text" id="sp-search" placeholder="Search contexts..." aria-label="Search">
         </div>
         <div id="sp-context-list" class="sp-list"></div>
+        <!-- Detail View (shown when clicking a context) -->
+        <div id="sp-detail-view" class="sp-detail hidden">
+          <button id="sp-detail-back" class="sp-detail-back" aria-label="Back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to list
+          </button>
+          <div id="sp-detail-title" class="sp-detail-title"></div>
+          <div id="sp-detail-meta" class="sp-detail-meta"></div>
+          <div id="sp-detail-summary" class="sp-detail-summary"></div>
+          <div class="sp-detail-actions" style="margin-bottom:8px">
+            <button id="sp-detail-summarize" class="sp-btn-secondary hidden">AI Summarize</button>
+          </div>
+          <div id="sp-detail-content" class="sp-detail-content"></div>
+          <div class="sp-detail-actions">
+            <button id="sp-detail-copy" class="sp-btn-primary">Copy Full Content</button>
+          </div>
+        </div>
       </div>
 
       <!-- Library Panel -->

@@ -133,14 +133,18 @@
           <select id="language-select" class="mini-select"><option value="auto" data-i18n="langAuto">Auto</option><option value="en">English</option><option value="zh">中文</option></select>
         </div>
 
-        <!-- Auto Capture -->
+        <!-- Capture Settings -->
         <div class="setting-group">
           <div class="setting-group-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-            <h3 class="setting-group-title" data-i18n="autoCapture">Auto Capture</h3>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            <h3 class="setting-group-title">Capture Settings</h3>
           </div>
           <div class="setting-item">
-            <div class="setting-info"><span class="setting-label" data-i18n="autoCapture">Auto Capture</span><span class="setting-desc" data-i18n="autoCaptureDesc">Auto capture matching URLs</span></div>
+            <div class="setting-info"><span class="setting-label" data-i18n="captureDepth">Capture Depth</span><span class="setting-desc">Content extraction amount</span></div>
+            <select id="capture-depth" class="mini-select"><option value="light" data-i18n="depthLight">Light (15K)</option><option value="standard" selected data-i18n="depthStandard">Standard (50K)</option><option value="deep" data-i18n="depthDeep">Deep (150K)</option></select>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info"><span class="setting-label">Auto Capture</span><span class="setting-desc" data-i18n="autoCaptureDesc">Auto capture matching URLs</span></div>
             <label class="toggle"><input type="checkbox" id="auto-capture"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-item auto-capture-settings">
@@ -155,12 +159,12 @@
             <h3 class="setting-group-title" data-i18n="aiIntegration">AI Integration</h3>
           </div>
           <div class="setting-item">
-            <div class="setting-info"><span class="setting-label" data-i18n="enableAI">Enable AI Summarization</span><span class="setting-desc" data-i18n="enableAIDesc">Use AI for smart summarization</span></div>
+            <div class="setting-info"><span class="setting-label" data-i18n="enableAI">Enable AI</span><span class="setting-desc">Connect to AI API provider</span></div>
             <label class="toggle"><input type="checkbox" id="ai-enabled"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-item ai-settings">
-            <div class="setting-info"><span class="setting-label" data-i18n="captureDepth">Capture Depth</span></div>
-            <select id="capture-depth" class="mini-select"><option value="light" data-i18n="depthLight">Light</option><option value="standard" selected data-i18n="depthStandard">Standard</option><option value="deep" data-i18n="depthDeep">Deep</option></select>
+            <div class="setting-info"><span class="setting-label">Auto Summarize</span><span class="setting-desc">AI auto-summarize after capture</span></div>
+            <label class="toggle"><input type="checkbox" id="auto-summarize" checked><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-item ai-settings">
             <div class="setting-info"><span class="setting-label" data-i18n="apiProvider">API Provider</span></div>
@@ -237,7 +241,7 @@
           <input type="text" id="tmpl-name" class="field-input" placeholder="My Template">
           <label class="field-label" data-i18n="templateContent">Template Content</label>
           <textarea id="tmpl-content" class="field-textarea" rows="6" placeholder="{title}&#10;{summary}&#10;{query}"></textarea>
-          <p class="field-hint" data-i18n="templatePlaceholders">Available: {title} {url} {summary} {selection} {query} {description} {chatSummary}</p>
+          <p class="field-hint" data-i18n="templatePlaceholders">Available: {title} {url} {content} {summary} {selection} {query} {description} {chatSummary}</p>
           <div id="custom-templates-list" class="custom-templates-list"></div>
         </div>
         <div class="modal-footer">

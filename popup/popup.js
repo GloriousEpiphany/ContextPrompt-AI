@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
   await loadData();
   applyTheme(settings.theme);
+
+  // Listen for storage changes (e.g., AI summary completed in background)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.contexts) {
+      contexts = changes.contexts.newValue || [];
+      renderContextList();
+    }
+  });
 });
 
 function bindEvents() {
@@ -67,12 +75,16 @@ function bindEvents() {
   $('language-select').addEventListener('change', handleSettingChange);
   $('auto-capture')?.addEventListener('change', handleSettingChange);
   $('auto-capture-patterns')?.addEventListener('change', handleSettingChange);
+  $('capture-depth')?.addEventListener('change', handleSettingChange);
   $('ai-enabled')?.addEventListener('change', handleAISettingChange);
+  $('auto-summarize')?.addEventListener('change', handleAISettingChange);
   $('ai-provider')?.addEventListener('change', handleAISettingChange);
   $('ai-api-key')?.addEventListener('change', handleAISettingChange);
+  $('ai-api-key')?.addEventListener('input', debounce(handleAISettingChange, 800));
   $('ai-base-url')?.addEventListener('change', handleAISettingChange);
+  $('ai-base-url')?.addEventListener('input', debounce(handleAISettingChange, 800));
   $('ai-model')?.addEventListener('change', handleAISettingChange);
-  $('capture-depth')?.addEventListener('change', handleAISettingChange);
+  $('ai-model')?.addEventListener('input', debounce(handleAISettingChange, 800));
   $('test-ai-btn')?.addEventListener('click', handleTestAI);
 
   // Modal backdrop click to close
@@ -129,6 +141,7 @@ function renderContextList() {
     filtered = contexts.filter(ctx =>
       (ctx.title || '').toLowerCase().includes(searchQuery) ||
       (ctx.url || '').toLowerCase().includes(searchQuery) ||
+      (ctx.mainContent || '').toLowerCase().includes(searchQuery) ||
       (ctx.selection || '').toLowerCase().includes(searchQuery) ||
       (ctx.description || '').toLowerCase().includes(searchQuery) ||
       (ctx.tags || []).some(tag => tag.toLowerCase().includes(searchQuery))
@@ -152,6 +165,8 @@ function renderContextList() {
       <div class="context-header">
         <span class="context-title" title="${escapeHtml(ctx.title)}">${escapeHtml(truncate(ctx.title, 38))}</span>
         <div class="context-actions">
+          ${(settings.aiEnabled && !ctx.aiSummary) ? `<button class="action-btn ai-btn" data-id="${ctx.id}" title="AI Summarize" aria-label="AI Summarize">AI</button>` : ''}
+          ${ctx.aiSummary ? '<span class="ai-badge">AI</span>' : ''}
           <button class="action-btn edit-btn" data-id="${ctx.id}" title="${t('edit')}" aria-label="Edit">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
@@ -159,7 +174,7 @@ function renderContextList() {
         </div>
       </div>
       <div class="context-url" title="${escapeHtml(ctx.url)}">${escapeHtml(truncateUrl(ctx.url))}</div>
-      <div class="context-preview">${escapeHtml(truncate(ctx.selection || ctx.description || ctx.notes || t('noContent'), 80))}</div>
+      <div class="context-preview">${escapeHtml(truncate(ctx.aiSummary || ctx.mainContent || ctx.selection || ctx.description || ctx.notes || t('noContent'), 200))}</div>
       ${(ctx.tags && ctx.tags.length) ? `<div class="context-tags">${ctx.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
       <div class="context-time">${formatTime(ctx.timestamp)}</div>
     </div>
@@ -171,6 +186,29 @@ function renderContextList() {
   });
   list.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(btn.dataset.id); });
+  });
+  list.querySelectorAll('.ai-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        const res = await chrome.runtime.sendMessage({ action: 'summarizeContext', data: { id: btn.dataset.id } });
+        if (res && res.success) {
+          contexts = await chrome.runtime.sendMessage({ action: 'getAllContexts' }) || [];
+          renderContextList();
+          showToast('AI Summary ready', 'success');
+        } else {
+          showToast('AI: ' + (res?.error || 'Failed'), 'error');
+          btn.textContent = 'AI';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        showToast('AI: ' + err.message, 'error');
+        btn.textContent = 'AI';
+        btn.disabled = false;
+      }
+    });
   });
   list.querySelectorAll('.context-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -224,6 +262,26 @@ async function handleCapture() {
         contexts = await chrome.runtime.sendMessage({ action: 'getAllContexts' }) || [];
         renderContextList();
         showToast(t('contextCaptured'), 'success');
+
+        // Explicitly trigger AI summarization if enabled
+        if (settings.aiEnabled && settings.autoSummarize !== false) {
+          showToast('AI Summarizing...', 'info');
+          try {
+            const aiResult = await chrome.runtime.sendMessage({
+              action: 'summarizeContext',
+              data: { id: result.context.id }
+            });
+            if (aiResult && aiResult.success) {
+              contexts = await chrome.runtime.sendMessage({ action: 'getAllContexts' }) || [];
+              renderContextList();
+              showToast('AI Summary ready', 'success');
+            } else {
+              showToast('AI: ' + (aiResult?.error || 'Failed'), 'error');
+            }
+          } catch (aiErr) {
+            showToast('AI error: ' + aiErr.message, 'error');
+          }
+        }
       } else {
         showToast(t('saveFailed'), 'error');
       }
@@ -564,12 +622,13 @@ function applySettings() {
   $('language-select').value = settings.language || 'auto';
   if ($('auto-capture')) $('auto-capture').checked = settings.autoCapture || false;
   if ($('auto-capture-patterns')) $('auto-capture-patterns').value = settings.autoCapturePatterns || '';
+  if ($('capture-depth')) $('capture-depth').value = settings.captureDepth || 'standard';
   if ($('ai-enabled')) $('ai-enabled').checked = settings.aiEnabled || false;
+  if ($('auto-summarize')) $('auto-summarize').checked = settings.autoSummarize !== false;
   if ($('ai-provider')) $('ai-provider').value = settings.aiProvider || 'openai';
   if ($('ai-api-key')) $('ai-api-key').value = settings.aiApiKey || '';
   if ($('ai-base-url')) $('ai-base-url').value = settings.aiBaseUrl || '';
   if ($('ai-model')) $('ai-model').value = settings.aiModel || 'gpt-4o-mini';
-  if ($('capture-depth')) $('capture-depth').value = settings.captureDepth || 'standard';
   updateAISettingsVisibility();
 }
 
@@ -588,17 +647,18 @@ async function handleSettingChange() {
   settings.language = $('language-select').value;
   settings.autoCapture = $('auto-capture')?.checked || false;
   settings.autoCapturePatterns = $('auto-capture-patterns')?.value || '';
+  settings.captureDepth = $('capture-depth')?.value || 'standard';
   applyTheme(settings.theme);
   await saveSettings();
 }
 
 async function handleAISettingChange() {
   settings.aiEnabled = $('ai-enabled')?.checked || false;
+  settings.autoSummarize = $('auto-summarize')?.checked ?? true;
   settings.aiProvider = $('ai-provider')?.value || 'openai';
   settings.aiApiKey = $('ai-api-key')?.value || '';
   settings.aiBaseUrl = $('ai-base-url')?.value || '';
   settings.aiModel = $('ai-model')?.value || 'gpt-4o-mini';
-  settings.captureDepth = $('capture-depth')?.value || 'standard';
   updateAISettingsVisibility();
   await saveSettings();
 }
@@ -672,6 +732,11 @@ function escapeAttr(text) {
 function truncate(text, max) {
   if (!text) return '';
   return text.length <= max ? text : text.substring(0, max) + '...';
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 }
 
 function truncateUrl(url) {

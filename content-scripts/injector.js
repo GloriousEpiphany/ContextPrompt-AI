@@ -145,19 +145,44 @@
 
   async function generatePrompt(context, template, settings) {
     let prompt = template.template;
+
+    // Build {summary}: prefer cached AI summary, then real-time AI, then NLP
     let summary;
-    if (settings.aiEnabled) {
+    if (context.aiSummary) {
+      summary = context.aiSummary;
+    } else if (settings.aiEnabled) {
       summary = await createSummaryWithAI(context, settings);
     } else {
       summary = await createSummaryLocal(context);
     }
 
-    let chatSummary = (settings.aiEnabled && context.chatContent) ? summary
-      : (context.chatContent || '(No chat content available)');
+    // Build {content}: AI summary when AI is on, full content when off
+    let contentForPrompt;
+    if (context.aiSummary) {
+      contentForPrompt = context.aiSummary;
+    } else if (settings.aiEnabled) {
+      // AI enabled but no cached summary — reuse the summary we just got
+      contentForPrompt = summary.replace(/^AI Summary:\n/, '');
+    } else {
+      contentForPrompt = (context.mainContent || context.selection || context.description || '').substring(0, 30000);
+    }
+
+    let chatSummary = (context.chatContent)
+      ? (context.aiSummary || summary)
+      : '(No chat content available)';
+
+    console.log('[ContextPrompt] prompt build:', {
+      templateId: template.id,
+      aiEnabled: settings.aiEnabled,
+      hasAiSummary: !!context.aiSummary,
+      summaryLen: summary?.length,
+      contentLen: contentForPrompt?.length
+    });
 
     prompt = prompt.replace(/\{title\}/g, context.title || 'Untitled');
     prompt = prompt.replace(/\{url\}/g, context.url || '');
     prompt = prompt.replace(/\{summary\}/g, summary);
+    prompt = prompt.replace(/\{content\}/g, contentForPrompt);
     prompt = prompt.replace(/\{selection\}/g, context.selection || '(No text selected)');
     prompt = prompt.replace(/\{query\}/g, '[Type your question here]');
     prompt = prompt.replace(/\{description\}/g, context.description || '');
@@ -171,6 +196,10 @@
   }
 
   async function createSummaryWithAI(context, settings) {
+    // Use cached AI summary if available
+    if (context.aiSummary) {
+      return 'AI Summary:\n' + context.aiSummary;
+    }
     try {
       let content = '';
       if (context.isPrivateLink && context.chatContent) {
@@ -185,7 +214,7 @@
         data: { content, language: settings.language || 'auto', maxLength: 300 }
       });
       if (result && result.success && result.summary) {
-        return '🤖 AI Summary:\n' + result.summary;
+        return 'AI Summary:\n' + result.summary;
       }
       return createSummaryLocal(context);
     } catch {

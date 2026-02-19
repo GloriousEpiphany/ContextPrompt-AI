@@ -17,7 +17,12 @@
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "https://chat.qwen.ai/*",
-    "https://www.doubao.com/*"
+    "https://www.doubao.com/*",
+    "https://api.openai.com/*",
+    "https://api.deepseek.com/*",
+    "https://api.anthropic.com/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "service-worker.js",

@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   renderContexts();
   renderLibrary();
+
+  // Listen for storage changes (e.g., AI summary completed in background)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.contexts) {
+      contexts = changes.contexts.newValue || [];
+      renderContexts();
+    }
+  });
 });
 
 function applyTheme() {
@@ -63,6 +71,7 @@ function renderContexts() {
     filtered = contexts.filter(c =>
       (c.title || '').toLowerCase().includes(searchQuery) ||
       (c.url || '').toLowerCase().includes(searchQuery) ||
+      (c.mainContent || '').toLowerCase().includes(searchQuery) ||
       (c.tags || []).some(t => t.toLowerCase().includes(searchQuery))
     );
   }
@@ -70,21 +79,42 @@ function renderContexts() {
     list.innerHTML = `<div class="sp-empty"><img src="../assets/illustrations/empty-contexts.svg" width="100" alt=""><p>No contexts found</p></div>`;
     return;
   }
-  list.innerHTML = filtered.map((ctx, i) => `
+  list.innerHTML = filtered.map((ctx, i) => {
+    // Show mainContent preview — this is the full captured article
+    const preview = ctx.aiSummary || ctx.mainContent || ctx.selection || ctx.description || ctx.notes || '';
+    return `
     <div class="sp-item" data-id="${ctx.id}" style="animation: cp-stagger-in var(--duration-normal) var(--ease-default) ${i * 40}ms both">
       <div class="sp-item-title">${esc(truncate(ctx.title, 50))}</div>
-      <div class="sp-item-meta">${esc(truncateUrl(ctx.url))} · ${formatTime(ctx.timestamp)}</div>
-      <div class="sp-item-preview">${esc(truncate(ctx.selection || ctx.description || ctx.notes || '', 100))}</div>
+      <div class="sp-item-meta">${esc(truncateUrl(ctx.url))} · ${formatTime(ctx.timestamp)}${ctx.mainContent ? ' · ' + formatSize(ctx.mainContent.length) : ''}</div>
+      <div class="sp-item-preview">${esc(truncate(preview, 200))}</div>
       ${(ctx.tags && ctx.tags.length) ? `<div class="sp-item-tags">${ctx.tags.map(t => `<span class="sp-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="sp-item-actions">
-        <button class="sp-action-btn sp-copy" data-content="${escAttr(ctx.selection || ctx.description || '')}">📋 Copy</button>
-        <button class="sp-action-btn sp-delete" data-id="${ctx.id}">🗑️ Delete</button>
+        <button class="sp-action-btn sp-view" data-id="${ctx.id}">View Full</button>
+        <button class="sp-action-btn sp-copy" data-id="${ctx.id}">Copy</button>
+        <button class="sp-action-btn sp-delete" data-id="${ctx.id}">Delete</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
+  // View full content
+  list.querySelectorAll('.sp-view').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); showDetail(btn.dataset.id); });
+  });
+  // Also click on item to view
+  list.querySelectorAll('.sp-item').forEach(item => {
+    item.addEventListener('click', () => showDetail(item.dataset.id));
+  });
   list.querySelectorAll('.sp-copy').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); navigator.clipboard.writeText(btn.dataset.content); });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const ctx = contexts.find(c => c.id === btn.dataset.id);
+      if (ctx) {
+        const content = ctx.mainContent || ctx.selection || ctx.description || '';
+        navigator.clipboard.writeText(content);
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 1000);
+      }
+    });
   });
   list.querySelectorAll('.sp-delete').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -94,6 +124,87 @@ function renderContexts() {
       renderContexts();
     });
   });
+}
+
+/**
+ * Show full detail view for a captured context
+ */
+function showDetail(id) {
+  const ctx = contexts.find(c => c.id === id);
+  if (!ctx) return;
+
+  $('sp-context-list').classList.add('hidden');
+  $('sp-search').parentElement.classList.add('hidden');
+  const detail = $('sp-detail-view');
+  detail.classList.remove('hidden');
+
+  $('sp-detail-title').textContent = ctx.title || 'Untitled';
+  $('sp-detail-meta').textContent = `${ctx.url || ''} · ${new Date(ctx.timestamp).toLocaleString()}`;
+
+  // AI Summary section
+  const summaryEl = $('sp-detail-summary');
+  if (ctx.aiSummary) {
+    summaryEl.innerHTML = `<div class="sp-summary-label">AI Summary</div><div class="sp-summary-text">${esc(ctx.aiSummary)}</div>`;
+    summaryEl.classList.remove('hidden');
+    $('sp-detail-summarize').classList.add('hidden');
+  } else {
+    summaryEl.classList.add('hidden');
+    // Show manual summarize button if AI is configured
+    const summarizeBtn = $('sp-detail-summarize');
+    if (settings.aiEnabled && settings.aiApiKey) {
+      summarizeBtn.classList.remove('hidden');
+      summarizeBtn.disabled = false;
+      summarizeBtn.textContent = 'AI Summarize';
+      summarizeBtn.onclick = async () => {
+        summarizeBtn.disabled = true;
+        summarizeBtn.textContent = 'Summarizing...';
+        try {
+          const result = await chrome.runtime.sendMessage({ action: 'summarizeContext', data: { id: ctx.id } });
+          if (result && result.success) {
+            // Refresh the detail view
+            const freshContexts = await chrome.runtime.sendMessage({ action: 'getAllContexts' }) || [];
+            contexts = freshContexts;
+            showDetail(ctx.id);
+          } else {
+            summarizeBtn.textContent = result?.error || 'Failed';
+            setTimeout(() => { summarizeBtn.textContent = 'Retry'; summarizeBtn.disabled = false; }, 2000);
+          }
+        } catch (err) {
+          summarizeBtn.textContent = 'Error: ' + err.message;
+          setTimeout(() => { summarizeBtn.textContent = 'Retry'; summarizeBtn.disabled = false; }, 2000);
+        }
+      };
+    } else {
+      summarizeBtn.classList.add('hidden');
+    }
+  }
+
+  // Full content — render mainContent as preformatted text (it's already Markdown)
+  const contentEl = $('sp-detail-content');
+  const fullContent = ctx.mainContent || ctx.selection || ctx.description || 'No content captured';
+  contentEl.textContent = fullContent;
+
+  // Copy button
+  $('sp-detail-copy').onclick = () => {
+    navigator.clipboard.writeText(fullContent);
+    $('sp-detail-copy').textContent = 'Copied!';
+    setTimeout(() => $('sp-detail-copy').textContent = 'Copy Full Content', 1500);
+  };
+
+  // Back button
+  $('sp-detail-back').onclick = hideDetail;
+}
+
+function hideDetail() {
+  $('sp-detail-view').classList.add('hidden');
+  $('sp-context-list').classList.remove('hidden');
+  $('sp-search').parentElement.classList.remove('hidden');
+}
+
+function formatSize(chars) {
+  if (chars < 1000) return chars + ' chars';
+  if (chars < 10000) return (chars / 1000).toFixed(1) + 'K';
+  return Math.round(chars / 1000) + 'K';
 }
 
 // ==================== Library ====================

@@ -169,6 +169,7 @@ async function handleMessage(message, sender) {
 
       // AI
       case 'summarizeWithAI': return await summarizeWithAI(data);
+      case 'summarizeContext': return await manualSummarizeContext(data.id);
       case 'analyzePromptQuality': return await analyzePromptQuality(data);
       case 'fuseContexts': return await fuseContextsWithAI(data);
       case 'testAIConnection': return await testAIConnection();
@@ -212,22 +213,127 @@ async function saveContext(contextData) {
       selection: contextData.selection || '',
       description: contextData.description || '',
       ogData: contextData.ogData || {},
+      structuredData: contextData.structuredData || {},
       mainContent: contextData.mainContent || '',
       chatContent: contextData.chatContent || '',
       isPrivateLink: contextData.isPrivateLink || false,
       platformName: contextData.platformName || '',
       captureDepth: contextData.captureDepth || 'standard',
       notes: contextData.notes || '',
-      tags: contextData.tags || []
+      tags: contextData.tags || [],
+      aiSummary: ''
     };
     contexts.unshift(newContext);
     if (contexts.length > MAX_CONTEXTS) contexts.pop();
     await setStorageData('contexts', contexts, 'local');
     await updateBadge();
+
+    // Auto AI summarization (non-blocking)
+    autoSummarizeContext(newContext.id).catch(err => {
+      console.error('[ContextPrompt] Auto-summarize error:', err);
+    });
+
     return { success: true, context: newContext };
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Auto-summarize captured content with AI (runs in background)
+ */
+async function autoSummarizeContext(contextId) {
+  const settings = await getSettings();
+  if (!settings.autoSummarize || !settings.aiEnabled || !settings.aiApiKey) {
+    console.log('[ContextPrompt] Auto-summarize skipped:', !settings.autoSummarize ? 'disabled' : !settings.aiEnabled ? 'AI not enabled' : 'no API key');
+    return;
+  }
+
+  const contexts = await getStorageData('contexts', 'local') || [];
+  const ctx = contexts.find(c => c.id === contextId);
+  if (!ctx) return;
+
+  // Determine content to summarize (priority: mainContent > chatContent > selection)
+  const content = ctx.mainContent || ctx.chatContent || ctx.selection || '';
+  if (content.length < 100) {
+    console.log('[ContextPrompt] Auto-summarize skipped: content too short (' + content.length + ' chars)');
+    return;
+  }
+
+  try {
+    const service = await refreshAIService();
+    if (!service.isConfigured()) {
+      console.warn('[ContextPrompt] Auto-summarize skipped: AI service not configured');
+      return;
+    }
+
+    console.log('[ContextPrompt] Starting AI summarization for context:', contextId, '(' + content.length + ' chars)');
+    const language = settings.language === 'auto' ? detectContentLanguage(content) : settings.language;
+    const summary = await service.summarize(content, { language, maxLength: 500 });
+
+    if (summary) {
+      // Update the context with AI summary
+      const freshContexts = await getStorageData('contexts', 'local') || [];
+      const idx = freshContexts.findIndex(c => c.id === contextId);
+      if (idx !== -1) {
+        freshContexts[idx].aiSummary = summary;
+        await setStorageData('contexts', freshContexts, 'local');
+        console.log('[ContextPrompt] AI summary saved for context:', contextId);
+      }
+    }
+  } catch (err) {
+    console.error('[ContextPrompt] Auto-summarize failed:', err.message || err);
+  }
+}
+
+/**
+ * Manual AI summarization triggered by user
+ */
+async function manualSummarizeContext(contextId) {
+  try {
+    const service = await refreshAIService();
+    console.log('[ContextPrompt] Manual summarize - provider:', service.provider, 'model:', service.model, 'configured:', service.isConfigured());
+    if (!service.isConfigured()) {
+      return { success: false, error: 'AI not configured. Enable AI and set API key in settings.' };
+    }
+
+    const contexts = await getStorageData('contexts', 'local') || [];
+    const ctx = contexts.find(c => c.id === contextId);
+    if (!ctx) return { success: false, error: 'Context not found' };
+
+    const content = ctx.mainContent || ctx.chatContent || ctx.selection || '';
+    console.log('[ContextPrompt] Content to summarize:', content.length, 'chars');
+    if (content.length < 50) return { success: false, error: 'Content too short to summarize (' + content.length + ' chars)' };
+
+    const settings = await getSettings();
+    const language = settings.language === 'auto' ? detectContentLanguage(content) : settings.language;
+    console.log('[ContextPrompt] Calling AI summarize, language:', language, 'endpoint:', service.getBaseUrl());
+    const summary = await service.summarize(content, { language, maxLength: 500 });
+
+    if (summary) {
+      const freshContexts = await getStorageData('contexts', 'local') || [];
+      const idx = freshContexts.findIndex(c => c.id === contextId);
+      if (idx !== -1) {
+        freshContexts[idx].aiSummary = summary;
+        await setStorageData('contexts', freshContexts, 'local');
+      }
+      console.log('[ContextPrompt] Manual summarize success, summary length:', summary.length);
+      return { success: true, summary };
+    }
+    return { success: false, error: 'AI returned empty response' };
+  } catch (error) {
+    console.error('[ContextPrompt] Manual summarize failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Simple language detection for auto-summarization
+ */
+function detectContentLanguage(text) {
+  const sample = text.substring(0, 500);
+  const chineseChars = (sample.match(/[\u4e00-\u9fff]/g) || []).length;
+  return chineseChars / sample.length > 0.1 ? 'zh' : 'en';
 }
 
 async function getLatestContext() {
@@ -321,19 +427,15 @@ async function saveSettings(newSettings) {
 const DEFAULT_TEMPLATES = [
   {
     id: 'standard', name: 'Standard',
-    template: `📌 Context from: {title}\n\n{summary}\n\n❓ My question: {query}`
+    template: `📌 Context from: {title}\n🔗 {url}\n\n{summary}\n\n❓ My question: {query}`
   },
   {
     id: 'detailed', name: 'Detailed',
-    template: `📌 Source: {title}\n🔗 URL: {url}\n\n📄 Key Information:\n{summary}\n\n💬 Selected Text:\n{selection}\n\n❓ Question: {query}`
-  },
-  {
-    id: 'concise', name: 'Concise',
-    template: `Based on "{title}": {summary}\n\nQ: {query}`
+    template: `📌 Source: {title}\n🔗 URL: {url}\n\n📄 Content:\n{content}\n\n❓ Question: {query}`
   },
   {
     id: 'chinese', name: '中文模板',
-    template: `📌 来源：{title}\n\n📄 关键信息：\n{summary}\n\n❓ 我的问题：{query}`
+    template: `📌 来源：{title}\n🔗 链接：{url}\n\n🤖 内容摘要：\n{summary}\n\n❓ 我的问题：{query}`
   },
   {
     id: 'ai_chat', name: 'AI Chat Context',

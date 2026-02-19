@@ -14,7 +14,7 @@
 - 🌐 **国际化** — 完整的中英文双语支持（i18n）
 
 ### v3.0 新功能
-- 🧠 **AI 智能摘要** — 可选接入 OpenAI、DeepSeek、通义千问等 API
+- 🧠 **AI 智能摘要** — 可选接入 OpenAI、DeepSeek、Anthropic、通义千问等 API，捕获后自动摘要
 - 📊 **提示词质量雷达图** — Canvas 2D 绘制，分析清晰度、具体性、完整性、总分
 - 📚 **提示词库** — 预置代码审查、内容摘要、翻译、研究分析、写作助手 5 大分类
 - 🏷️ **标签系统** — 手动添加标签 + NLP 自动标签建议
@@ -84,17 +84,17 @@
 
 1. 打开扩展设置 → AI 集成
 2. 启用「AI 智能摘要」
-3. 选择 API 提供商（OpenAI / DeepSeek / 通义千问 / 自定义）
+3. 选择 API 提供商（OpenAI / DeepSeek / Anthropic / 通义千问 / 自定义）
 4. 输入 API Key
 5. 可选：自定义 Base URL 和模型名称
 
 ### 捕获深度设置
 
-| 模式 | 消息长度 | 消息数量 | 页面内容 | 适用场景 |
+| 模式 | 聊天消息长度 | 聊天消息数量 | 页面内容上限 | 适用场景 |
 |------|---------|---------|---------|---------|
-| 💨 轻量 | 500字符/条 | 10条 | 3000字符 | 节省 Token |
-| ⚖️ 标准 | 1500字符/条 | 20条 | 8000字符 | 日常使用 |
-| 🔬 深度 | 3000字符/条 | 30条 | 15000字符 | 完整内容 |
+| 💨 轻量 | 500 字符/条 | 10 条 | 15,000 字符 | 节省 Token |
+| ⚖️ 标准 | 1,500 字符/条 | 20 条 | 50,000 字符 | 日常使用 |
+| 🔬 深度 | 3,000 字符/条 | 30 条 | 150,000 字符 | 完整内容 |
 
 ### Side Panel
 
@@ -116,10 +116,10 @@ contextprompt-ai/
 │   ├── en/messages.json          # 英文语言包
 │   └── zh/messages.json          # 中文语言包
 ├── content-scripts/
-│   ├── capture.js                # 深度内容提取
+│   ├── capture.js                # Readability 算法深度内容提取
 │   └── injector.js               # AI 平台按钮注入 + 预览面板
 ├── lib/
-│   ├── ai-service.js             # AI API 服务封装（OpenAI/DeepSeek/Qwen/自定义）
+│   ├── ai-service.js             # AI API 服务封装（OpenAI/DeepSeek/Anthropic/Qwen/自定义）
 │   ├── nlp-engine.js             # 本地 NLP 处理（摘要, 关键词, 语言检测）
 │   ├── prompt-library.js         # 预置提示词库（5 大分类）
 │   └── i18n-helper.js            # 国际化辅助工具
@@ -170,6 +170,7 @@ contextprompt-ai/
 |-------|----------|---------|
 | OpenAI | https://api.openai.com/v1 | gpt-4o-mini |
 | DeepSeek | https://api.deepseek.com/v1 | deepseek-chat |
+| Anthropic | https://api.anthropic.com/v1 | claude-3-haiku-20240307 |
 | 通义千问 | https://dashscope.aliyuncs.com/compatible-mode/v1 | qwen-turbo |
 | 自定义 | 用户自定义 | 用户自定义 |
 
