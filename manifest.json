@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "permissions": [
@@ -30,8 +30,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content-scripts/capture.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content-scripts/capture.js"
+      ],
       "run_at": "document_end"
     },
     {
@@ -43,8 +47,12 @@
         "https://chat.qwen.ai/*",
         "https://www.doubao.com/*"
       ],
-      "js": ["content-scripts/injector.js"],
-      "css": ["assets/styles.css"],
+      "js": [
+        "content-scripts/injector.js"
+      ],
+      "css": [
+        "assets/styles.css"
+      ],
       "run_at": "document_end"
     }
   ],
@@ -66,11 +74,17 @@
   },
   "commands": {
     "capture-page": {
-      "suggested_key": { "default": "Ctrl+Shift+C", "mac": "Command+Shift+C" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
       "description": "Capture current page context"
     },
     "generate-prompt": {
-      "suggested_key": { "default": "Ctrl+Shift+P", "mac": "Command+Shift+P" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
       "description": "Generate and insert prompt"
     }
   }
