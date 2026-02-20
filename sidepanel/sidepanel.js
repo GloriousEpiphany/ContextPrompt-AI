@@ -1,5 +1,5 @@
 /**
- * ContextPrompt AI - Side Panel v3.0
+ * ContextPrompt AI - Side Panel v3.1
  * Full-featured panel with context management, prompt library, history, quality radar
  */
 

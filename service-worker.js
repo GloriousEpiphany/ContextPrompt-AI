@@ -1,5 +1,5 @@
 /**
- * ContextPrompt AI - Service Worker v3.0
+ * ContextPrompt AI - Service Worker v3.1
  * Integrates AIService & PromptEngine, uses local storage, adds context menus,
  * keyboard shortcuts, badge, prompt history, tags, auto-capture, favorites.
  */
@@ -124,6 +124,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   try {
     const settings = await getSettings();
     if (!settings.autoCapture || !settings.autoCapturePatterns) return;
+    // Check if optional host permission is granted
+    const hasPermission = await chrome.permissions.contains({ origins: ['https://*/*', 'http://*/*'] });
+    if (!hasPermission) return;
     const patterns = settings.autoCapturePatterns.split('\n').map(p => p.trim()).filter(Boolean);
     const matches = patterns.some(pattern => {
       try {
@@ -610,7 +613,7 @@ async function exportData() {
     return {
       success: true,
       data: {
-        version: '3.0.0',
+        version: '3.1.0',
         exportedAt: new Date().toISOString(),
         contexts, settings, customTemplates: templates, promptHistory: history
       }

@@ -1,5 +1,5 @@
 /**
- * ContextPrompt AI - Popup Script v3.0
+ * ContextPrompt AI - Popup Script v3.1
  * Full-featured popup with search, edit, export/import, history, templates, tags
  */
 
@@ -645,9 +645,27 @@ async function handleSettingChange() {
   settings.enableInjection = $('enable-injection').checked;
   settings.theme = $('theme-select').value;
   settings.language = $('language-select').value;
-  settings.autoCapture = $('auto-capture')?.checked || false;
-  settings.autoCapturePatterns = $('auto-capture-patterns')?.value || '';
   settings.captureDepth = $('capture-depth')?.value || 'standard';
+  settings.autoCapturePatterns = $('auto-capture-patterns')?.value || '';
+
+  // Auto-capture requires optional host permissions
+  const wantsAutoCapture = $('auto-capture')?.checked || false;
+  if (wantsAutoCapture && !settings.autoCapture) {
+    try {
+      const granted = await chrome.permissions.request({ origins: ['https://*/*', 'http://*/*'] });
+      settings.autoCapture = granted;
+      if ($('auto-capture')) $('auto-capture').checked = granted;
+      if (!granted) {
+        showToast('Permission denied — auto-capture requires broad host access', 'error');
+      }
+    } catch {
+      settings.autoCapture = false;
+      if ($('auto-capture')) $('auto-capture').checked = false;
+    }
+  } else {
+    settings.autoCapture = wantsAutoCapture;
+  }
+
   applyTheme(settings.theme);
   await saveSettings();
 }

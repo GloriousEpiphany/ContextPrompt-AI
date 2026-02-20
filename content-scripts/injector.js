@@ -1,5 +1,5 @@
 /**
- * ContextPrompt AI - Injector Script v3.0
+ * ContextPrompt AI - Injector Script v3.1
  * Injects Craft Prompt button with preview panel, retry logic, history saving
  */
 
