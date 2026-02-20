@@ -12,8 +12,10 @@
     "sidePanel"
   ],
   "optional_host_permissions": [
-    "https://*/*",
-    "http://*/*"
+    "https://api.openai.com/*",
+    "https://api.deepseek.com/*",
+    "https://api.anthropic.com/*",
+    "https://dashscope.aliyuncs.com/*"
   ],
   "background": {
     "service_worker": "service-worker.js",

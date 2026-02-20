@@ -124,9 +124,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   try {
     const settings = await getSettings();
     if (!settings.autoCapture || !settings.autoCapturePatterns) return;
-    // Check if optional host permission is granted
-    const hasPermission = await chrome.permissions.contains({ origins: ['https://*/*', 'http://*/*'] });
-    if (!hasPermission) return;
     const patterns = settings.autoCapturePatterns.split('\n').map(p => p.trim()).filter(Boolean);
     const matches = patterns.some(pattern => {
       try {

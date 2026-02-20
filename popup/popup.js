@@ -646,26 +646,8 @@ async function handleSettingChange() {
   settings.theme = $('theme-select').value;
   settings.language = $('language-select').value;
   settings.captureDepth = $('capture-depth')?.value || 'standard';
+  settings.autoCapture = $('auto-capture')?.checked || false;
   settings.autoCapturePatterns = $('auto-capture-patterns')?.value || '';
-
-  // Auto-capture requires optional host permissions
-  const wantsAutoCapture = $('auto-capture')?.checked || false;
-  if (wantsAutoCapture && !settings.autoCapture) {
-    try {
-      const granted = await chrome.permissions.request({ origins: ['https://*/*', 'http://*/*'] });
-      settings.autoCapture = granted;
-      if ($('auto-capture')) $('auto-capture').checked = granted;
-      if (!granted) {
-        showToast('Permission denied — auto-capture requires broad host access', 'error');
-      }
-    } catch {
-      settings.autoCapture = false;
-      if ($('auto-capture')) $('auto-capture').checked = false;
-    }
-  } else {
-    settings.autoCapture = wantsAutoCapture;
-  }
-
   applyTheme(settings.theme);
   await saveSettings();
 }
