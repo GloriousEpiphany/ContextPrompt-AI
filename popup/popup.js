@@ -671,14 +671,53 @@ async function handleSettingChange() {
 }
 
 async function handleAISettingChange() {
-  settings.aiEnabled = $('ai-enabled')?.checked || false;
+  const wantsAI = $('ai-enabled')?.checked || false;
   settings.autoSummarize = $('auto-summarize')?.checked ?? true;
   settings.aiProvider = $('ai-provider')?.value || 'openai';
   settings.aiApiKey = $('ai-api-key')?.value || '';
   settings.aiBaseUrl = $('ai-base-url')?.value || '';
   settings.aiModel = $('ai-model')?.value || 'gpt-4o-mini';
+
+  // Request API endpoint permission when enabling AI
+  if (wantsAI && !settings.aiEnabled) {
+    const origin = getAPIOrigin(settings.aiProvider, settings.aiBaseUrl);
+    if (origin) {
+      try {
+        const granted = await chrome.permissions.request({ origins: [origin] });
+        settings.aiEnabled = granted;
+        if ($('ai-enabled')) $('ai-enabled').checked = granted;
+        if (!granted) {
+          showToast('Permission denied — AI features require API access', 'error');
+        }
+      } catch {
+        settings.aiEnabled = false;
+        if ($('ai-enabled')) $('ai-enabled').checked = false;
+      }
+    } else {
+      settings.aiEnabled = true;
+    }
+  } else {
+    settings.aiEnabled = wantsAI;
+  }
+
   updateAISettingsVisibility();
   await saveSettings();
+}
+
+function getAPIOrigin(provider, customUrl) {
+  const origins = {
+    openai: 'https://api.openai.com/*',
+    deepseek: 'https://api.deepseek.com/*',
+    anthropic: 'https://api.anthropic.com/*',
+    qwen: 'https://dashscope.aliyuncs.com/*'
+  };
+  if (provider === 'custom' && customUrl) {
+    try {
+      const url = new URL(customUrl);
+      return url.origin + '/*';
+    } catch { return null; }
+  }
+  return origins[provider] || null;
 }
 
 function updateAISettingsVisibility() {

@@ -11,18 +11,6 @@
     "contextMenus",
     "sidePanel"
   ],
-  "host_permissions": [
-    "https://chat.openai.com/*",
-    "https://chatgpt.com/*",
-    "https://claude.ai/*",
-    "https://gemini.google.com/*",
-    "https://chat.qwen.ai/*",
-    "https://www.doubao.com/*",
-    "https://api.openai.com/*",
-    "https://api.deepseek.com/*",
-    "https://api.anthropic.com/*",
-    "https://dashscope.aliyuncs.com/*"
-  ],
   "optional_host_permissions": [
     "https://*/*",
     "http://*/*"
