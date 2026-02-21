@@ -1,5 +1,9 @@
 # ContextPrompt AI
 
+<p align="center">
+  <img src="promo/contextprompt-ai.png" alt="ContextPrompt AI" width="440">
+</p>
+
 ✨ **智能 AI 提示词生成 Chrome 扩展** — 捕获网页上下文，生成精准 AI 提示词，支持 AI 智能摘要、提示词质量分析、Side Panel 全功能面板。
 
 ---
