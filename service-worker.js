@@ -38,6 +38,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
   // Initialize badge
   await updateBadge();
+
+  // Enable side panel
+  try {
+    await chrome.sidePanel.setOptions({
+      enabled: true,
+      path: 'sidepanel/sidepanel.html'
+    });
+  } catch { /* sidePanel API may not be available */ }
 });
 
 // ==================== Context Menus ====================
@@ -192,6 +200,16 @@ async function handleMessage(message, sender) {
 
       // Tags
       case 'suggestTags': return await suggestTags(data);
+
+      // Side Panel
+      case 'openSidePanel':
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab) await chrome.sidePanel.open({ windowId: tab.windowId });
+          return { success: true };
+        } catch (e) {
+          return { success: false, error: e.message };
+        }
 
       default: return { success: false, error: 'Unknown action' };
     }

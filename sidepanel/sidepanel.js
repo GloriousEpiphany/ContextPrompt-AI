@@ -13,10 +13,10 @@ let searchQuery = '';
 document.addEventListener('DOMContentLoaded', async () => {
   await initI18n();
   applyI18n();
-  applyTheme();
   bindTabs();
   bindEvents();
   await loadData();
+  applyTheme();
   renderContexts();
   renderLibrary();
 
@@ -30,8 +30,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function applyTheme() {
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.documentElement.setAttribute('data-theme', 'dark');
+  const theme = settings.theme || 'system';
+  const root = document.documentElement;
+  if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+  } else {
+    root.setAttribute('data-theme', 'light');
   }
 }
 

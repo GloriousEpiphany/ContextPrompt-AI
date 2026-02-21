@@ -45,6 +45,7 @@ function bindEvents() {
   $('clear-history-btn').addEventListener('click', handleClearHistory);
   $('template-select').addEventListener('change', handleTemplateChange);
   $('fuse-btn').addEventListener('click', handleFuseContexts);
+  $('sidepanel-btn').addEventListener('click', handleOpenSidePanel);
 
   // Search with debounce
   $('search-input').addEventListener('input', (e) => {
@@ -113,6 +114,25 @@ async function loadData() {
     applySettings();
   } catch (error) {
     showToast(t('loadFailed'), 'error');
+  }
+}
+
+// ==================== Side Panel ====================
+
+async function handleOpenSidePanel() {
+  try {
+    // Get the current window to open side panel in
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      window.close(); // Close popup after opening side panel
+    }
+  } catch (err) {
+    // Fallback: try via service worker message
+    try {
+      await chrome.runtime.sendMessage({ action: 'openSidePanel' });
+      window.close();
+    } catch { /* ignore */ }
   }
 }
 

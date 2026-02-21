@@ -168,6 +168,7 @@
   "exportFailed": { "message": "导出失败" },
   "permissionDenied": { "message": "权限被拒绝 — AI 功能需要 API 访问权限" },
   "localFirst": { "message": "本地优先" },
+  "openSidePanel": { "message": "打开侧边栏" },
 
   "captureSettings": { "message": "捕获设置" },
   "autoSummarize": { "message": "自动摘要" },

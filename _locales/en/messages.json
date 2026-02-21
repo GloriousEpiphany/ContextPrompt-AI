@@ -168,6 +168,7 @@
   "exportFailed": { "message": "Export failed" },
   "permissionDenied": { "message": "Permission denied — AI features require API access" },
   "localFirst": { "message": "Local-First" },
+  "openSidePanel": { "message": "Open Side Panel" },
 
   "captureSettings": { "message": "Capture Settings" },
   "autoSummarize": { "message": "Auto Summarize" },
