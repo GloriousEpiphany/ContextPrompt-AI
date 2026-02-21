@@ -8,6 +8,33 @@
   if (window.__contextPromptInjectorInit) return;
   window.__contextPromptInjectorInit = true;
 
+  // ==================== Inline i18n for content script ====================
+  let _locale = 'en';
+  let _messages = {};
+
+  async function loadI18n() {
+    try {
+      const settings = await sendMsg({ action: 'getSettings' });
+      const lang = settings?.language || 'auto';
+      _locale = lang === 'auto'
+        ? (navigator.language.startsWith('zh') ? 'zh' : 'en')
+        : lang;
+      const url = chrome.runtime.getURL(`_locales/${_locale}/messages.json`);
+      const resp = await fetch(url);
+      _messages = await resp.json();
+    } catch { /* fallback to key */ }
+  }
+
+  function t(key) {
+    const entry = _messages[key];
+    if (entry && entry.message) return entry.message;
+    try {
+      const msg = chrome.i18n.getMessage(key);
+      if (msg) return msg;
+    } catch { /* ignore */ }
+    return key;
+  }
+
   const PLATFORM_CONFIGS = {
     'chat.openai.com': { name: 'ChatGPT', inputSelector: '#prompt-textarea', containerSelector: 'form', insertPosition: 'before', inputType: 'textarea' },
     'chatgpt.com': { name: 'ChatGPT', inputSelector: '#prompt-textarea', containerSelector: 'form', insertPosition: 'before', inputType: 'textarea' },
@@ -39,8 +66,8 @@
     btn.id = 'contextprompt-btn';
     btn.type = 'button';
     btn.className = 'contextprompt-inject-btn';
-    btn.innerHTML = `<span class="contextprompt-icon">✨</span><span class="contextprompt-text">Craft Prompt</span>`;
-    btn.title = 'Insert context-aware prompt';
+    btn.innerHTML = `<span class="contextprompt-icon">✨</span><span class="contextprompt-text">${t('craftPrompt')}</span>`;
+    btn.title = t('craftPromptTitle');
     btn.addEventListener('click', handleButtonClick);
     return btn;
   }
@@ -54,7 +81,7 @@
     try {
       const context = await sendMsg({ action: 'getLatestContext' });
       if (!context) {
-        showNotification(chrome.i18n.getMessage('noContext') || 'No captured context. Visit any page and click the extension icon to save!', 'warning');
+        showNotification(chrome.i18n.getMessage('noContext') || t('noContext'), 'warning');
         return;
       }
       const settings = await sendMsg({ action: 'getSettings' });
@@ -65,7 +92,7 @@
       // Show preview panel instead of direct insert
       showPreviewPanel(prompt, context, templates, settings);
     } catch (error) {
-      showNotification('Error: ' + error.message, 'error');
+      showNotification(t('errorPrefix') + error.message, 'error');
     } finally {
       if (btn) btn.classList.remove('contextprompt-loading');
     }
@@ -89,7 +116,7 @@
     panel.className = 'contextprompt-preview-panel';
     panel.innerHTML = `
       <div class="contextprompt-preview-header">
-        <span class="contextprompt-preview-title">✨ Prompt Preview</span>
+        <span class="contextprompt-preview-title">✨ ${t('promptPreview')}</span>
         <button class="contextprompt-preview-close" aria-label="Close">&times;</button>
       </div>
       <div class="contextprompt-preview-toolbar">
@@ -99,8 +126,8 @@
       </div>
       <textarea class="contextprompt-preview-editor" rows="10">${escapeHtml(prompt)}</textarea>
       <div class="contextprompt-preview-footer">
-        <button class="contextprompt-btn-cancel">Cancel</button>
-        <button class="contextprompt-btn-insert">Insert Prompt</button>
+        <button class="contextprompt-btn-cancel">${t('cancel')}</button>
+        <button class="contextprompt-btn-insert">${t('insertPromptBtn')}</button>
       </div>
     `;
     document.body.appendChild(panel);
@@ -115,7 +142,7 @@
       await insertPrompt(text);
       // Save to history
       sendMsg({ action: 'savePromptHistory', data: { prompt: text, template: settings.defaultTemplate, contextTitle: context.title } }).catch(() => {});
-      showNotification(chrome.i18n.getMessage('promptInserted') || 'Prompt inserted!', 'success');
+      showNotification(chrome.i18n.getMessage('promptInserted') || t('promptInserted'), 'success');
     });
     panel.querySelector('.contextprompt-template-switcher').addEventListener('change', async (e) => {
       const newTemplate = templates.find(t => t.id === e.target.value) || templates[0];
@@ -169,7 +196,7 @@
 
     let chatSummary = (context.chatContent)
       ? (context.aiSummary || summary)
-      : '(No chat content available)';
+      : t('noChatContent');
 
     console.log('[ContextPrompt] prompt build:', {
       templateId: template.id,
@@ -179,12 +206,12 @@
       contentLen: contentForPrompt?.length
     });
 
-    prompt = prompt.replace(/\{title\}/g, context.title || 'Untitled');
+    prompt = prompt.replace(/\{title\}/g, context.title || t('untitled'));
     prompt = prompt.replace(/\{url\}/g, context.url || '');
     prompt = prompt.replace(/\{summary\}/g, summary);
     prompt = prompt.replace(/\{content\}/g, contentForPrompt);
-    prompt = prompt.replace(/\{selection\}/g, context.selection || '(No text selected)');
-    prompt = prompt.replace(/\{query\}/g, '[Type your question here]');
+    prompt = prompt.replace(/\{selection\}/g, context.selection || t('noTextSelected'));
+    prompt = prompt.replace(/\{query\}/g, t('typeQuestionHere'));
     prompt = prompt.replace(/\{description\}/g, context.description || '');
     prompt = prompt.replace(/\{chatSummary\}/g, chatSummary);
 
@@ -232,7 +259,7 @@
     if (context.selection && context.selection.length > 50) return truncateText(context.selection, 500);
     if (context.description) return truncateText(context.description, 300);
     if (context.ogData && context.ogData.description) return truncateText(context.ogData.description, 300);
-    return 'No detailed content available';
+    return t('noDetailedContent');
   }
 
   function truncateText(text, max) {
@@ -245,7 +272,7 @@
     const config = getPlatformConfig();
     if (!config) return;
     const input = document.querySelector(config.inputSelector);
-    if (!input) throw new Error('Input field not found');
+    if (!input) throw new Error(t('inputFieldNotFound'));
 
     input.focus();
     const isContentEditable = input.hasAttribute('contenteditable') || input.getAttribute('contenteditable') === 'true';
@@ -263,7 +290,7 @@
     }
 
     // Select query placeholder
-    const placeholder = '[Type your question here]';
+    const placeholder = t('typeQuestionHere');
     if (prompt.includes(placeholder)) {
       setTimeout(() => {
         if (isContentEditable) {
@@ -344,10 +371,12 @@
   }
 
   function init() {
-    checkAndInject();
-    setupObserver();
-    setTimeout(checkAndInject, 1000);
-    setTimeout(checkAndInject, 3000);
+    loadI18n().then(() => {
+      checkAndInject();
+      setupObserver();
+      setTimeout(checkAndInject, 1000);
+      setTimeout(checkAndInject, 3000);
+    });
   }
 
   if (document.readyState === 'loading') {

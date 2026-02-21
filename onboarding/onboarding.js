@@ -2,10 +2,14 @@
  * ContextPrompt AI - Onboarding Script
  */
 
+import { initI18n, applyI18n, t } from '../lib/i18n-helper.js';
+
 let currentStep = 0;
 const totalSteps = 3;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await initI18n();
+  applyI18n();
   document.getElementById('ob-next').addEventListener('click', nextStep);
   document.getElementById('ob-skip').addEventListener('click', finish);
 });
@@ -33,7 +37,7 @@ function updateUI() {
   // Update button text
   const btn = document.getElementById('ob-next');
   if (currentStep === totalSteps - 1) {
-    btn.textContent = chrome.i18n?.getMessage('getStarted') || 'Get Started';
+    btn.textContent = t('getStarted');
   }
 }
 

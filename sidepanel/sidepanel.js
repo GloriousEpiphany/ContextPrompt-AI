@@ -4,12 +4,15 @@
  */
 
 import { PROMPT_CATEGORIES } from '../lib/prompt-library.js';
+import { initI18n, applyI18n, t } from '../lib/i18n-helper.js';
 
 const $ = id => document.getElementById(id);
 let contexts = [], history = [], settings = {};
 let searchQuery = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await initI18n();
+  applyI18n();
   applyTheme();
   bindTabs();
   bindEvents();
@@ -76,7 +79,7 @@ function renderContexts() {
     );
   }
   if (filtered.length === 0) {
-    list.innerHTML = `<div class="sp-empty"><img src="../assets/illustrations/empty-contexts.svg" width="100" alt=""><p>No contexts found</p></div>`;
+    list.innerHTML = `<div class="sp-empty"><img src="../assets/illustrations/empty-contexts.svg" width="100" alt=""><p>${t('noContextsFound')}</p></div>`;
     return;
   }
   list.innerHTML = filtered.map((ctx, i) => {
@@ -89,9 +92,9 @@ function renderContexts() {
       <div class="sp-item-preview">${esc(truncate(preview, 200))}</div>
       ${(ctx.tags && ctx.tags.length) ? `<div class="sp-item-tags">${ctx.tags.map(t => `<span class="sp-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="sp-item-actions">
-        <button class="sp-action-btn sp-view" data-id="${ctx.id}">View Full</button>
-        <button class="sp-action-btn sp-copy" data-id="${ctx.id}">Copy</button>
-        <button class="sp-action-btn sp-delete" data-id="${ctx.id}">Delete</button>
+        <button class="sp-action-btn sp-view" data-id="${ctx.id}">${t('viewFull')}</button>
+        <button class="sp-action-btn sp-copy" data-id="${ctx.id}">${t('copy')}</button>
+        <button class="sp-action-btn sp-delete" data-id="${ctx.id}">${t('delete')}</button>
       </div>
     </div>`;
   }).join('');
@@ -111,8 +114,8 @@ function renderContexts() {
       if (ctx) {
         const content = ctx.mainContent || ctx.selection || ctx.description || '';
         navigator.clipboard.writeText(content);
-        btn.textContent = 'Copied!';
-        setTimeout(() => btn.textContent = 'Copy', 1000);
+        btn.textContent = t('copied');
+        setTimeout(() => btn.textContent = t('copy'), 1000);
       }
     });
   });
@@ -138,13 +141,13 @@ function showDetail(id) {
   const detail = $('sp-detail-view');
   detail.classList.remove('hidden');
 
-  $('sp-detail-title').textContent = ctx.title || 'Untitled';
+  $('sp-detail-title').textContent = ctx.title || t('untitled');
   $('sp-detail-meta').textContent = `${ctx.url || ''} · ${new Date(ctx.timestamp).toLocaleString()}`;
 
   // AI Summary section
   const summaryEl = $('sp-detail-summary');
   if (ctx.aiSummary) {
-    summaryEl.innerHTML = `<div class="sp-summary-label">AI Summary</div><div class="sp-summary-text">${esc(ctx.aiSummary)}</div>`;
+    summaryEl.innerHTML = `<div class="sp-summary-label">${t('aiSummaryLabel')}</div><div class="sp-summary-text">${esc(ctx.aiSummary)}</div>`;
     summaryEl.classList.remove('hidden');
     $('sp-detail-summarize').classList.add('hidden');
   } else {
@@ -154,10 +157,10 @@ function showDetail(id) {
     if (settings.aiEnabled && settings.aiApiKey) {
       summarizeBtn.classList.remove('hidden');
       summarizeBtn.disabled = false;
-      summarizeBtn.textContent = 'AI Summarize';
+      summarizeBtn.textContent = t('aiSummarize');
       summarizeBtn.onclick = async () => {
         summarizeBtn.disabled = true;
-        summarizeBtn.textContent = 'Summarizing...';
+        summarizeBtn.textContent = t('summarizing');
         try {
           const result = await chrome.runtime.sendMessage({ action: 'summarizeContext', data: { id: ctx.id } });
           if (result && result.success) {
@@ -166,12 +169,12 @@ function showDetail(id) {
             contexts = freshContexts;
             showDetail(ctx.id);
           } else {
-            summarizeBtn.textContent = result?.error || 'Failed';
-            setTimeout(() => { summarizeBtn.textContent = 'Retry'; summarizeBtn.disabled = false; }, 2000);
+            summarizeBtn.textContent = result?.error || t('failed');
+            setTimeout(() => { summarizeBtn.textContent = t('retry'); summarizeBtn.disabled = false; }, 2000);
           }
         } catch (err) {
-          summarizeBtn.textContent = 'Error: ' + err.message;
-          setTimeout(() => { summarizeBtn.textContent = 'Retry'; summarizeBtn.disabled = false; }, 2000);
+          summarizeBtn.textContent = t('errorPrefix', [err.message]);
+          setTimeout(() => { summarizeBtn.textContent = t('retry'); summarizeBtn.disabled = false; }, 2000);
         }
       };
     } else {
@@ -181,14 +184,14 @@ function showDetail(id) {
 
   // Full content — render mainContent as preformatted text (it's already Markdown)
   const contentEl = $('sp-detail-content');
-  const fullContent = ctx.mainContent || ctx.selection || ctx.description || 'No content captured';
+  const fullContent = ctx.mainContent || ctx.selection || ctx.description || t('noContentCaptured');
   contentEl.textContent = fullContent;
 
   // Copy button
   $('sp-detail-copy').onclick = () => {
     navigator.clipboard.writeText(fullContent);
-    $('sp-detail-copy').textContent = 'Copied!';
-    setTimeout(() => $('sp-detail-copy').textContent = 'Copy Full Content', 1500);
+    $('sp-detail-copy').textContent = t('copied');
+    setTimeout(() => $('sp-detail-copy').textContent = t('copyFullContent'), 1500);
   };
 
   // Back button
@@ -202,7 +205,7 @@ function hideDetail() {
 }
 
 function formatSize(chars) {
-  if (chars < 1000) return chars + ' chars';
+  if (chars < 1000) return t('chars', [chars]);
   if (chars < 10000) return (chars / 1000).toFixed(1) + 'K';
   return Math.round(chars / 1000) + 'K';
 }
@@ -239,7 +242,7 @@ async function loadHistory() {
   history = await chrome.runtime.sendMessage({ action: 'getPromptHistory' }) || [];
   const list = $('sp-history-list');
   if (history.length === 0) {
-    list.innerHTML = `<div class="sp-empty"><img src="../assets/illustrations/empty-history.svg" width="100" alt=""><p>No history yet</p></div>`;
+    list.innerHTML = `<div class="sp-empty"><img src="../assets/illustrations/empty-history.svg" width="100" alt=""><p>${t('noHistoryYet')}</p></div>`;
     return;
   }
   list.innerHTML = history.map((item, i) => `
@@ -248,8 +251,8 @@ async function loadHistory() {
       <div class="sp-item-meta">${formatTime(item.timestamp)}</div>
       <div class="sp-item-preview">${esc(truncate(item.prompt, 120))}</div>
       <div class="sp-item-actions">
-        <button class="sp-action-btn sp-copy" data-content="${escAttr(item.prompt)}">📋 Copy</button>
-        <button class="sp-action-btn fav ${item.favorite ? 'active' : ''}" data-id="${item.id}">${item.favorite ? '★' : '☆'} Fav</button>
+        <button class="sp-action-btn sp-copy" data-content="${escAttr(item.prompt)}">📋 ${t('copy')}</button>
+        <button class="sp-action-btn fav ${item.favorite ? 'active' : ''}" data-id="${item.id}">${item.favorite ? '★' : '☆'} ${t('fav')}</button>
       </div>
     </div>
   `).join('');
@@ -273,7 +276,7 @@ async function analyzeQuality() {
   if (!prompt) return;
   const btn = $('sp-analyze-btn');
   btn.disabled = true;
-  btn.textContent = 'Analyzing...';
+  btn.textContent = t('analyzing');
 
   try {
     const result = await chrome.runtime.sendMessage({ action: 'analyzePromptQuality', data: { prompt } });
@@ -287,7 +290,7 @@ async function analyzeQuality() {
     $('sp-quality-result').innerHTML = `<p style="color:var(--cp-danger)">${err.message}</p>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Analyze Quality';
+    btn.textContent = t('analyzeQuality');
   }
 }
 
@@ -300,7 +303,7 @@ function drawRadar(analysis) {
 
   ctx.clearRect(0, 0, w, h);
 
-  const labels = ['Clarity', 'Specificity', 'Completeness', 'Overall'];
+  const labels = [t('clarity'), t('specificity'), t('completeness'), t('overall')];
   const values = [
     (analysis.clarity || 5) / 10,
     (analysis.specificity || 5) / 10,
@@ -375,16 +378,16 @@ function drawRadar(analysis) {
 function renderQualityResult(analysis) {
   const container = $('sp-quality-result');
   let html = `
-    <div class="sp-score-row"><span class="sp-score-label">Clarity</span><span class="sp-score-value">${analysis.clarity || '-'}/10</span></div>
-    <div class="sp-score-row"><span class="sp-score-label">Specificity</span><span class="sp-score-value">${analysis.specificity || '-'}/10</span></div>
-    <div class="sp-score-row"><span class="sp-score-label">Completeness</span><span class="sp-score-value">${analysis.completeness || '-'}/10</span></div>
-    <div class="sp-score-row"><span class="sp-score-label">Overall</span><span class="sp-score-value">${analysis.overall || '-'}/10</span></div>
+    <div class="sp-score-row"><span class="sp-score-label">${t('clarity')}</span><span class="sp-score-value">${analysis.clarity || '-'}/10</span></div>
+    <div class="sp-score-row"><span class="sp-score-label">${t('specificity')}</span><span class="sp-score-value">${analysis.specificity || '-'}/10</span></div>
+    <div class="sp-score-row"><span class="sp-score-label">${t('completeness')}</span><span class="sp-score-value">${analysis.completeness || '-'}/10</span></div>
+    <div class="sp-score-row"><span class="sp-score-label">${t('overall')}</span><span class="sp-score-value">${analysis.overall || '-'}/10</span></div>
   `;
   if (analysis.suggestions && analysis.suggestions.length) {
-    html += `<div class="sp-suggestions"><h4>Suggestions</h4>${analysis.suggestions.map(s => `<div class="sp-suggestion-item">${esc(s)}</div>`).join('')}</div>`;
+    html += `<div class="sp-suggestions"><h4>${t('suggestions')}</h4>${analysis.suggestions.map(s => `<div class="sp-suggestion-item">${esc(s)}</div>`).join('')}</div>`;
   }
   if (analysis.improvedPrompt) {
-    html += `<div class="sp-suggestions"><h4>Improved Prompt</h4><div class="sp-suggestion-item" style="cursor:pointer" onclick="navigator.clipboard.writeText(this.textContent)">${esc(analysis.improvedPrompt)}</div></div>`;
+    html += `<div class="sp-suggestions"><h4>${t('improvedPrompt')}</h4><div class="sp-suggestion-item" style="cursor:pointer" onclick="navigator.clipboard.writeText(this.textContent)">${esc(analysis.improvedPrompt)}</div></div>`;
   }
   container.innerHTML = html;
 }
@@ -398,8 +401,8 @@ function truncateUrl(u) { if (!u) return ''; try { const p = new URL(u); let r =
 function formatTime(ts) {
   if (!ts) return '';
   const d = Date.now() - new Date(ts).getTime();
-  if (d < 60000) return 'Just now';
-  if (d < 3600000) return Math.floor(d / 60000) + 'm ago';
-  if (d < 86400000) return Math.floor(d / 3600000) + 'h ago';
+  if (d < 60000) return t('justNow');
+  if (d < 3600000) return t('mAgo', [Math.floor(d / 60000)]);
+  if (d < 86400000) return t('hAgo', [Math.floor(d / 3600000)]);
   return new Date(ts).toLocaleDateString();
 }

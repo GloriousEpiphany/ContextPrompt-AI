@@ -3,7 +3,7 @@
  * Full-featured popup with search, edit, export/import, history, templates, tags
  */
 
-import { applyI18n, t } from '../lib/i18n-helper.js';
+import { applyI18n, t, initI18n, setLocale } from '../lib/i18n-helper.js';
 
 // State
 let contexts = [];
@@ -19,6 +19,7 @@ let searchDebounceTimer = null;
 const $ = id => document.getElementById(id);
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await initI18n();
   applyI18n();
   bindEvents();
   await loadData();
@@ -152,8 +153,8 @@ function renderContextList() {
     list.innerHTML = `
       <div class="empty-state">
         <img src="../assets/illustrations/empty-contexts.svg" class="empty-illustration" alt="" width="120" height="96">
-        <p class="empty-title">${searchQuery ? 'No matching contexts' : escapeHtml(t('emptyTitle'))}</p>
-        <p class="empty-hint">${searchQuery ? 'Try a different search term' : escapeHtml(t('emptyHint'))}</p>
+        <p class="empty-title">${searchQuery ? t('noMatchingContexts') : escapeHtml(t('emptyTitle'))}</p>
+        <p class="empty-hint">${searchQuery ? t('tryDifferentSearch') : escapeHtml(t('emptyHint'))}</p>
       </div>`;
     return;
   }
@@ -197,14 +198,14 @@ function renderContextList() {
         if (res && res.success) {
           contexts = await chrome.runtime.sendMessage({ action: 'getAllContexts' }) || [];
           renderContextList();
-          showToast('AI Summary ready', 'success');
+          showToast(t('aiSummaryReady'), 'success');
         } else {
-          showToast('AI: ' + (res?.error || 'Failed'), 'error');
+          showToast('AI: ' + (res?.error || t('failed')), 'error');
           btn.textContent = 'AI';
           btn.disabled = false;
         }
       } catch (err) {
-        showToast('AI: ' + err.message, 'error');
+        showToast(t('aiError', [err.message]), 'error');
         btn.textContent = 'AI';
         btn.disabled = false;
       }
@@ -265,7 +266,7 @@ async function handleCapture() {
 
         // Explicitly trigger AI summarization if enabled
         if (settings.aiEnabled && settings.autoSummarize !== false) {
-          showToast('AI Summarizing...', 'info');
+          showToast(t('aiSummarizing'), 'info');
           try {
             const aiResult = await chrome.runtime.sendMessage({
               action: 'summarizeContext',
@@ -274,12 +275,12 @@ async function handleCapture() {
             if (aiResult && aiResult.success) {
               contexts = await chrome.runtime.sendMessage({ action: 'getAllContexts' }) || [];
               renderContextList();
-              showToast('AI Summary ready', 'success');
+              showToast(t('aiSummaryReady'), 'success');
             } else {
-              showToast('AI: ' + (aiResult?.error || 'Failed'), 'error');
+              showToast('AI: ' + (aiResult?.error || t('failed')), 'error');
             }
           } catch (aiErr) {
-            showToast('AI error: ' + aiErr.message, 'error');
+            showToast(t('aiError', [aiErr.message]), 'error');
           }
         }
       } else {
@@ -289,7 +290,7 @@ async function handleCapture() {
       showToast(t('captureFailed'), 'error');
     }
   } catch (error) {
-    showToast('Error: ' + error.message, 'error');
+    showToast(t('errorPrefix', [error.message]), 'error');
   } finally {
     btn.disabled = false;
     btn.classList.remove('loading');
@@ -413,7 +414,7 @@ function renderCustomTemplatesList() {
   const customTemplates = templates.filter(t => t.id.startsWith('custom_'));
   const container = $('custom-templates-list');
   if (customTemplates.length === 0) {
-    container.innerHTML = '<p class="empty-hint">No custom templates yet</p>';
+    container.innerHTML = '<p class="empty-hint">' + t('noCustomTemplates') + '</p>';
     return;
   }
   container.innerHTML = customTemplates.map(tmpl => `
@@ -474,7 +475,7 @@ async function handleExport() {
       URL.revokeObjectURL(url);
       showToast(t('exportSuccess'), 'success');
     }
-  } catch { showToast('Export failed', 'error'); }
+  } catch { showToast(t('exportFailed'), 'error'); }
 }
 
 async function handleImport(e) {
@@ -542,7 +543,7 @@ async function loadHistory() {
 }
 
 async function handleClearHistory() {
-  if (!confirm('Clear all prompt history?')) return;
+  if (!confirm(t('confirmClearHistory'))) return;
   await chrome.runtime.sendMessage({ action: 'clearPromptHistory' });
   loadHistory();
 }
@@ -649,6 +650,8 @@ async function handleSettingChange() {
   settings.autoCapture = $('auto-capture')?.checked || false;
   settings.autoCapturePatterns = $('auto-capture-patterns')?.value || '';
   applyTheme(settings.theme);
+  // Switch UI language at runtime
+  await setLocale(settings.language);
   await saveSettings();
 }
 
@@ -669,7 +672,7 @@ async function handleAISettingChange() {
         settings.aiEnabled = granted;
         if ($('ai-enabled')) $('ai-enabled').checked = granted;
         if (!granted) {
-          showToast('Permission denied — AI features require API access', 'error');
+          showToast(t('permissionDenied'), 'error');
         }
       } catch {
         settings.aiEnabled = false;

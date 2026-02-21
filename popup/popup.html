@@ -105,7 +105,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
         <h2 data-i18n="promptHistory">Prompt History</h2>
-        <button id="clear-history-btn" class="text-btn danger" aria-label="Clear history">Clear</button>
+        <button id="clear-history-btn" class="text-btn danger" data-i18n="clear" aria-label="Clear history">Clear</button>
       </div>
       <div id="history-list" class="history-list" role="list"></div>
     </div>
@@ -137,14 +137,14 @@
         <div class="setting-group">
           <div class="setting-group-header">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-            <h3 class="setting-group-title">Capture Settings</h3>
+            <h3 class="setting-group-title" data-i18n="captureSettings">Capture Settings</h3>
           </div>
           <div class="setting-item">
-            <div class="setting-info"><span class="setting-label" data-i18n="captureDepth">Capture Depth</span><span class="setting-desc">Content extraction amount</span></div>
+            <div class="setting-info"><span class="setting-label" data-i18n="captureDepth">Capture Depth</span><span class="setting-desc" data-i18n="contentExtractionAmount">Content extraction amount</span></div>
             <select id="capture-depth" class="mini-select"><option value="light" data-i18n="depthLight">Light (15K)</option><option value="standard" selected data-i18n="depthStandard">Standard (50K)</option><option value="deep" data-i18n="depthDeep">Deep (150K)</option></select>
           </div>
           <div class="setting-item">
-            <div class="setting-info"><span class="setting-label">Auto Capture</span><span class="setting-desc" data-i18n="autoCaptureDesc">Auto capture matching URLs</span></div>
+            <div class="setting-info"><span class="setting-label" data-i18n="autoCaptureLabelText">Auto Capture</span><span class="setting-desc" data-i18n="autoCaptureDesc">Auto capture matching URLs</span></div>
             <label class="toggle"><input type="checkbox" id="auto-capture"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-item auto-capture-settings">
@@ -159,11 +159,11 @@
             <h3 class="setting-group-title" data-i18n="aiIntegration">AI Integration</h3>
           </div>
           <div class="setting-item">
-            <div class="setting-info"><span class="setting-label" data-i18n="enableAI">Enable AI</span><span class="setting-desc">Connect to AI API provider</span></div>
+            <div class="setting-info"><span class="setting-label" data-i18n="enableAI">Enable AI</span><span class="setting-desc" data-i18n="enableAIDesc">Connect to AI API provider</span></div>
             <label class="toggle"><input type="checkbox" id="ai-enabled"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-item ai-settings">
-            <div class="setting-info"><span class="setting-label">Auto Summarize</span><span class="setting-desc">AI auto-summarize after capture</span></div>
+            <div class="setting-info"><span class="setting-label" data-i18n="autoSummarize">Auto Summarize</span><span class="setting-desc" data-i18n="autoSummarizeDesc">AI auto-summarize after capture</span></div>
             <label class="toggle"><input type="checkbox" id="auto-summarize" checked><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-item ai-settings">
@@ -255,7 +255,7 @@
     <footer class="popup-footer">
       <div class="footer-badge">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span>Local-First</span>
+        <span data-i18n="localFirst">Local-First</span>
       </div>
       <span class="footer-divider"></span>
       <span class="footer-version">v3.1</span>
